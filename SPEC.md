@@ -44,7 +44,8 @@ Web app donde una persona de la universidad se registra con su correo, configura
 - **Next.js 16.2.8** (estable, App Router, TypeScript). Sin Tailwind: se hereda el CSS propio de la maqueta.
 - **Supabase** free tier: Auth (magic links, envía los correos) + Postgres.
 - **Vercel** free tier (deploy). **pnpm**.
-- Cuentas **nuevas con el correo personal de Alan**, separadas de Reva.
+- Cuentas: las **actuales de Alan**, pero con **proyecto Supabase, proyecto Vercel y repo GitHub separados**. PlanPet es desechable post-feria: nada compartido con Reva/loyalt, para poder borrarlo completo sin tocar lo demás.
+- Riesgo conocido (resolver en S2): el SMTP por defecto de Supabase limita los correos de auth a ~2-4/hora — insuficiente para una feria. Opciones: SMTP propio (ej. Resend free) u otra mecánica de registro. Se decide con Alan en S2.
 - Regla: no se agregan dependencias sin registrarlo aquí y consultarlo antes.
 - Convención: imports relativos dentro de `src/lib/` y `scripts/` llevan extensión `.ts` explícita (permite validar la lógica con `node` puro, sin frameworks de test). `tsconfig.json` tiene `allowImportingTsExtensions: true`.
 
@@ -109,6 +110,6 @@ La raza define `tamaño, energía, pelaje` (`src/lib/breeds.ts`, ~33 razas comun
 
 ## 10. Pendientes de Alan
 
-- [ ] Crear cuentas Supabase y Vercel con el correo personal nuevo.
+- [ ] Crear **proyecto** Supabase nuevo para PlanPet en la cuenta actual (ojo: el plan free permite máx. 2 proyectos activos por organización).
+- [ ] Crear repo GitHub `alanmorales-dev/planpet` y proyecto Vercel separado al momento del deploy.
 - [ ] Definir textos del póster (las fórmulas y fuentes de §6 sirven directo).
-- [ ] (Opcional) repo GitHub `alanmorales-dev/planpet`.
