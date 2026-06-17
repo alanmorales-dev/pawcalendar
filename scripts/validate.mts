@@ -8,7 +8,9 @@ import { buildFeedingPlan } from '../src/lib/feeding.ts';
 import { generateWeek, leastLoadedOther } from '../src/lib/routine.ts';
 import { healthMilestones } from '../src/lib/health.ts';
 import { estimateMonthlyCost, estimateWeeklyTime } from '../src/lib/simulator.ts';
+import { buildPlanEmailHtml, buildPlanEmailSubject } from '../src/lib/email.ts';
 import type { Assignment, DogProfile } from '../src/lib/types.ts';
+import type { PlannerState } from '../src/lib/storage.ts';
 
 const DAYS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
 const LETTER: Record<string, string> = { food: 'A', walk: 'P', bath: 'H', health: 'S', shop: 'C' };
@@ -145,6 +147,28 @@ console.log(`\n━━━ Simulador pre-adopción ━━━`);
     cL.totalCLP === cL.items.reduce((a, i) => a + i.clp, 0),
     'el total mensual es la suma de los ítems',
   );
+}
+
+// ── iteración 2: correo de bienvenida ──
+console.log(`\n━━━ Correo de bienvenida ━━━`);
+{
+  const profile: DogProfile = {
+    name: 'Luna', breedId: 'border_collie', size: 'mediano', weightKg: 10, ageMonths: 6, neutered: false, goals: [],
+  };
+  const state: PlannerState = {
+    version: 1, emoji: '🐶', profile, coat: 'doble', energy: 'alta',
+    members: ['Alan', 'Vale'], mealTimes: ['08:00', '14:00', '20:00'], foodKcalPerKg: 3500,
+    registered: false, vetName: '', vetPhone: '', notes: '', pending: [], weekStart: '2026-06-15',
+    assignments: generateWeek(profile, breedById('border_collie'), ['Alan', 'Vale']), history: [],
+  };
+  const html = buildPlanEmailHtml(state);
+  check(buildPlanEmailSubject(state).includes('Luna'), 'el asunto menciona al perro');
+  check(html.includes('Luna'), 'el correo menciona al perro');
+  check(html.includes(`${state.assignments.filter((a) => a.type === 'walk').length} / semana`), 'incluye los paseos de la semana');
+  check(/g al día/.test(html), 'incluye la ración diaria');
+  check(html.includes('Registro Nacional'), 'recuerda el registro si no está inscrito');
+  const htmlReg = buildPlanEmailHtml({ ...state, registered: true });
+  check(!htmlReg.includes('Registro Nacional'), 'no muestra el recordatorio si ya está inscrito');
 }
 
 // ── catálogo ──

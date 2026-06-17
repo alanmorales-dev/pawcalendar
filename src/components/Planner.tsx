@@ -5,6 +5,7 @@ import { breedById } from '@/lib/breeds';
 import { buildFeedingPlan } from '@/lib/feeding';
 import { generateWeek, leastLoadedOther } from '@/lib/routine';
 import { healthMilestones, type HealthMilestone } from '@/lib/health';
+import { sendPlanEmail } from '@/lib/email';
 import { mondayOf, saveState, uid, type PlannerState, type Priority } from '@/lib/storage';
 import type { Goal, TaskType } from '@/lib/types';
 
@@ -43,6 +44,8 @@ export default function Planner({ initial, onReconfigure }: Props) {
   const [pendPrio, setPendPrio] = useState<Priority>('normal');
   // índice de la tarea cuyo menú "hoy no puedo" está abierto (modo marcar)
   const [menuIdx, setMenuIdx] = useState<number | null>(null);
+  const [emailInput, setEmailInput] = useState('');
+  const [sending, setSending] = useState(false);
 
   const plan = buildFeedingPlan(s.profile, { foodKcalPerKg: s.foodKcalPerKg });
   const effectiveBreed = { ...breedById(s.profile.breedId), size: s.profile.size, coat: s.coat, energy: s.energy };
@@ -115,6 +118,24 @@ export default function Planner({ initial, onReconfigure }: Props) {
     }));
     setMenuIdx(null);
     showToast(`📅 ${TYPE_DATA[a.type].label} movida a ${DAYS[a.day + 1]}`);
+  }
+
+  async function emailPlan() {
+    const email = emailInput.trim();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      showToast('Revisa el correo ✉️');
+      return;
+    }
+    setSending(true);
+    try {
+      await sendPlanEmail(email, s);
+      setEmailInput('');
+      showToast(`✨ ¡Listo! Enviamos el plan a ${email}`);
+    } catch {
+      showToast('No se pudo enviar (falta configurar el correo)');
+    } finally {
+      setSending(false);
+    }
   }
 
   function addHealthPending(m: HealthMilestone) {
@@ -367,6 +388,28 @@ export default function Planner({ initial, onReconfigure }: Props) {
 
         {/* PANELES */}
         <div className="right-col">
+          {/* CORREO */}
+          <div className="panel">
+            <div className="panel-header email-h"><span className="panel-icon">📧</span> Recibe tu plan por correo</div>
+            <div className="panel-body" style={{ paddingTop: 10 }}>
+              <p className="meal-detail" style={{ marginBottom: 10 }}>
+                Te enviamos el resumen del plan de {s.profile.name} a tu correo. 🐾
+              </p>
+              <div className="pend-add">
+                <input
+                  type="email"
+                  value={emailInput}
+                  onChange={(e) => setEmailInput(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && !sending && emailPlan()}
+                  placeholder="tucorreo@ejemplo.cl"
+                />
+                <button className="small-btn" onClick={emailPlan} disabled={sending}>
+                  {sending ? '…' : 'Enviar'}
+                </button>
+              </div>
+            </div>
+          </div>
+
           {/* COMIDAS */}
           <div className="panel">
             <div className="panel-header meal-h"><span className="panel-icon">🍽️</span> Horarios de comida</div>

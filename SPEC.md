@@ -132,3 +132,13 @@ En modo Marcar, tocar una tarea **pendiente** abre un menú con: "✓ ¡Hecha!",
 
 ### 11.3 Modo pre-adopción (simulador público)
 Ruta `/simulador`, **sin registro** — usable por visitantes del stand sin perro. Reutiliza los motores de §6 y §7: con raza/tamaño/edad/peso estima (a) **horas de cuidado por semana** (minutos por tipo de tarea: paseo 20/30/40 min según energía; alimentación 10 min × comida; higiene 30; salud 15; compras 30) y (b) **costo mensual CLP** (alimento = g/día × 30,4 × precio por kg editable, default $4.500; salud preventiva prorrateada por tamaño $6.000–12.000; higiene por pelaje $5.000–12.000; +10% imprevistos). Valores referenciales 2026, editables, con desglose visible y disclaimer. Lógica pura en `src/lib/simulator.ts`. Objetivo: formalizar la evaluación previa que la adopción impulsiva omite (caso Paulina, Solemne 1).
+
+## 12. Correo de bienvenida / resumen (feria)
+
+Decisión 2026-06-17: en la feria la persona usa la app sin login (localStorage); al ver su planner puede dejar su correo y recibir un **resumen real de su plan**. Es email transaccional, no autenticación — se descarta el magic link para la feria (evita el rate limit de SMTP de §4).
+
+- **Transporte:** Google Apps Script desplegado como App Web + `MailApp.sendEmail` desde la cuenta Google de Alan (idealmente `@mayor.cl`, Workspace → mejor entregabilidad y cuota mayor; Gmail normal ~100 destinatarios/día). Costo $0, sin comprar dominio. Código y pasos de despliegue en `docs/apps-script/`.
+- **App → Apps Script:** la app computa todo el HTML (reutiliza `feeding`/`routine`/`health`) y hace `fetch` con `mode: 'no-cors'` (envío fire-and-forget; la respuesta es opaca, se asume éxito). El Apps Script es un relay tonto que solo reenvía `{token, email, subject, html}`; valida un `token` compartido para disuadir abuso.
+- **Config:** `NEXT_PUBLIC_PLANPET_WEBHOOK` (URL del Apps Script) y `NEXT_PUBLIC_PLANPET_TOKEN` en `.env.local` (ver `.env.local.example`). Sin webhook configurado, el botón avisa en vez de fallar.
+- **Contenido (`src/lib/email.ts`, puro y testeable):** ración diaria y horarios, resumen de la rutina semanal, próximo hito sanitario, recordatorio de registro si no está inscrito, disclaimer y pie "proyecto universitario".
+- **Principio:** pantalla primero, correo como bonus — el plan siempre se ve en pantalla; un fallo de correo nunca rompe la demo.

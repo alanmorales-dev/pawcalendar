@@ -727,6 +727,7 @@ tbody td.member-col { text-align: left; padding: 8px 12px 8px 24px; }
 
 /* ── CALENDARIO SANITARIO ── */
 .panel-header.health-h { background: linear-gradient(135deg, var(--blue-light), var(--green-light)); color: var(--blue); }
+.panel-header.email-h { background: linear-gradient(135deg, var(--blue-light), var(--pink-light)); color: var(--blue); }
 .health-row {
   display: flex;
   align-items: flex-start;
