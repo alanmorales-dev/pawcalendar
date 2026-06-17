@@ -3,7 +3,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { breedById } from '@/lib/breeds';
 import { buildFeedingPlan } from '@/lib/feeding';
-import { generateWeek } from '@/lib/routine';
+import { generateWeek, leastLoadedOther } from '@/lib/routine';
+import { healthMilestones, type HealthMilestone } from '@/lib/health';
 import { mondayOf, saveState, uid, type PlannerState, type Priority } from '@/lib/storage';
 import type { Goal, TaskType } from '@/lib/types';
 
@@ -40,9 +41,12 @@ export default function Planner({ initial, onReconfigure }: Props) {
   const toastTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const [pendText, setPendText] = useState('');
   const [pendPrio, setPendPrio] = useState<Priority>('normal');
+  // índice de la tarea cuyo menú "hoy no puedo" está abierto (modo marcar)
+  const [menuIdx, setMenuIdx] = useState<number | null>(null);
 
   const plan = buildFeedingPlan(s.profile, { foodKcalPerKg: s.foodKcalPerKg });
   const effectiveBreed = { ...breedById(s.profile.breedId), size: s.profile.size, coat: s.coat, energy: s.energy };
+  const milestones = healthMilestones(s.profile.ageMonths, s.profile.size);
 
   const total = s.assignments.length;
   const done = s.assignments.filter((a) => a.completed).length;
@@ -83,6 +87,43 @@ export default function Planner({ initial, onReconfigure }: Props) {
   function addTask(member: string, day: number) {
     update((prev) => ({ ...prev, assignments: [...prev.assignments, { member, day, type: selType, completed: false }] }));
     showToast(`✓ ${TYPE_DATA[selType].label} asignada a ${member}`);
+  }
+
+  // "Hoy no puedo": a quién pasarle esta tarea (null si vive solo)
+  function reassignTarget(idx: number): string | null {
+    const a = s.assignments[idx];
+    return leastLoadedOther(s.assignments, s.members, a.member, a.day);
+  }
+
+  function reassignTask(idx: number) {
+    const target = reassignTarget(idx);
+    if (!target) return;
+    update((prev) => ({
+      ...prev,
+      assignments: prev.assignments.map((x, i) => (i === idx ? { ...x, member: target } : x)),
+    }));
+    setMenuIdx(null);
+    showToast(`🙅 Pasó a ${target}`);
+  }
+
+  function moveToTomorrow(idx: number) {
+    const a = s.assignments[idx];
+    if (a.day >= 6) return;
+    update((prev) => ({
+      ...prev,
+      assignments: prev.assignments.map((x, i) => (i === idx ? { ...x, day: x.day + 1 } : x)),
+    }));
+    setMenuIdx(null);
+    showToast(`📅 ${TYPE_DATA[a.type].label} movida a ${DAYS[a.day + 1]}`);
+  }
+
+  function addHealthPending(m: HealthMilestone) {
+    update((prev) =>
+      prev.pending.some((p) => p.text === m.label)
+        ? prev
+        : { ...prev, pending: [...prev.pending, { id: uid(), text: m.label, prio: 'alta', done: false }] },
+    );
+    showToast(`＋ ${m.label} en pendientes`);
   }
 
   function regenerate() {
@@ -172,11 +213,35 @@ export default function Planner({ initial, onReconfigure }: Props) {
             <div className="progress-pct">{pct}%</div>
           </div>
           <div className="pet-badge">🐾 {s.profile.name}</div>
+          <a className="icon-btn" href="/simulador" title="Simulador de adopción">🔍</a>
           <button className="icon-btn" title="Reconfigurar planificador" onClick={onReconfigure}>
             ⚙️
           </button>
         </div>
       </div>
+
+      {/* BANNER REGISTRO NACIONAL */}
+      {!s.registered && (
+        <div className="reg-banner">
+          <span className="reg-icon">📋</span>
+          <div className="reg-text">
+            <strong>{s.profile.name} aún no está en el Registro Nacional de Mascotas</strong>
+            <span>La inscripción con microchip es obligatoria por ley (Ley 21.020). En Chile solo 1 de cada 4 dueños la cumple.</span>
+          </div>
+          <a className="reg-link" href="https://www.registratumascota.cl" target="_blank" rel="noopener noreferrer">
+            Inscribir ↗
+          </a>
+          <button
+            className="reg-done"
+            onClick={() => {
+              update((prev) => ({ ...prev, registered: true }));
+              showToast('📋 ¡Genial! Registro completado');
+            }}
+          >
+            Ya está inscrito ✓
+          </button>
+        </div>
+      )}
 
       {/* MODO + TIPOS */}
       <div className="picker-section">
@@ -200,7 +265,7 @@ export default function Planner({ initial, onReconfigure }: Props) {
         )}
         <span className="picker-hint">
           {mode === 'marcar'
-            ? 'Toca una tarea para marcarla como hecha'
+            ? 'Toca una tarea pendiente para marcarla, reasignarla o moverla'
             : 'Clic en una celda asigna · clic en una tarea la quita'}
         </span>
       </div>
@@ -247,20 +312,41 @@ export default function Planner({ initial, onReconfigure }: Props) {
                             className={`cell ${mode === 'editar' ? 'editable' : ''}`}
                             onClick={mode === 'editar' ? () => addTask(m, day) : undefined}
                           >
-                            {cellTasks.map(({ a, idx }) => (
-                              <button
-                                key={idx}
-                                className={`task-chip t-${a.type} ${a.completed ? 'done' : ''}`}
-                                title={`${TYPE_DATA[a.type].label}${a.completed ? ' · hecha' : ''}`}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  if (mode === 'marcar') toggleDone(idx);
-                                  else removeTask(idx);
-                                }}
-                              >
-                                {TYPE_DATA[a.type].icon}
-                              </button>
-                            ))}
+                            {cellTasks.map(({ a, idx }) => {
+                              const open = menuIdx === idx;
+                              const target = open ? reassignTarget(idx) : null;
+                              return (
+                                <span className="chip-wrap" key={idx}>
+                                  <button
+                                    className={`task-chip t-${a.type} ${a.completed ? 'done' : ''}`}
+                                    title={`${TYPE_DATA[a.type].label}${a.completed ? ' · hecha' : ''}`}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      if (mode === 'editar') {
+                                        removeTask(idx);
+                                      } else if (a.completed) {
+                                        toggleDone(idx);
+                                      } else {
+                                        setMenuIdx(open ? null : idx);
+                                      }
+                                    }}
+                                  >
+                                    {TYPE_DATA[a.type].icon}
+                                  </button>
+                                  {open && (
+                                    <div className="task-menu" onClick={(e) => e.stopPropagation()}>
+                                      <button onClick={() => { toggleDone(idx); setMenuIdx(null); }}>✓ ¡Hecha!</button>
+                                      {target && (
+                                        <button onClick={() => reassignTask(idx)}>🙅 Hoy no puedo · pasar a {target}</button>
+                                      )}
+                                      {a.day < 6 && (
+                                        <button onClick={() => moveToTomorrow(idx)}>📅 Mover a {DAYS[a.day + 1]}</button>
+                                      )}
+                                    </div>
+                                  )}
+                                </span>
+                              );
+                            })}
                           </div>
                         </td>
                       );
@@ -336,6 +422,26 @@ export default function Planner({ initial, onReconfigure }: Props) {
               </div>
             </div>
           )}
+
+          {/* CALENDARIO SANITARIO */}
+          <div className="panel">
+            <div className="panel-header health-h"><span className="panel-icon">💉</span> Calendario sanitario</div>
+            <div className="panel-body" style={{ paddingTop: 8 }}>
+              {milestones.map((m, i) => (
+                <div className="health-row" key={i}>
+                  <span className="health-icon">{m.icon}</span>
+                  <div className="health-info">
+                    <strong>{m.label}</strong>
+                    <span>{m.detail}</span>
+                  </div>
+                  <button className="health-add" title="Agregar a pendientes" onClick={() => addHealthPending(m)}>
+                    ＋
+                  </button>
+                </div>
+              ))}
+              <p className="disclaimer">Frecuencias referenciales. La pauta definitiva la indica tu veterinario/a.</p>
+            </div>
+          </div>
 
           {/* PENDIENTES */}
           <div className="panel">
@@ -440,6 +546,9 @@ export default function Planner({ initial, onReconfigure }: Props) {
           )}
         </div>
       </div>
+
+      {/* backdrop para cerrar el menú "hoy no puedo" al tocar fuera */}
+      {menuIdx !== null && <div className="menu-backdrop" onClick={() => setMenuIdx(null)} />}
 
       {/* TOAST */}
       <div className={`toast ${toast.on ? 'show' : ''}`}>{toast.msg}</div>

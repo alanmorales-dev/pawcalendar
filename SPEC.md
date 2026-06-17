@@ -33,6 +33,11 @@ Web app donde una persona de la universidad se registra con su correo, configura
 - Objetivos como métricas visibles (ej: paseos hechos vs meta semanal).
 - Cierre de semana: archivar y partir semana nueva (historial simple).
 
+**Iteración 2 (decidido por Alan con el equipo, 2026-06-09) — funciones anti-abandono (ver §11):**
+- Reasignación de tareas "Hoy no puedo" (pregunta abierta #1 del testeo de Solemne 1).
+- Checklist Registro Nacional de Mascotas + calendario sanitario sugerido por edad.
+- Modo pre-adopción: simulador público de tiempo y costo mensual (sin registro).
+
 **Fuera de alcance (decidido por Alan, 2026-06-09):**
 - Sincronización realtime entre dispositivos.
 - Modo demo del stand.
@@ -113,3 +118,17 @@ La raza define `tamaño, energía, pelaje` (`src/lib/breeds.ts`, ~33 razas comun
 - [ ] Crear **proyecto** Supabase nuevo para PlanPet en la cuenta actual (ojo: el plan free permite máx. 2 proyectos activos por organización).
 - [ ] Crear repo GitHub `alanmorales-dev/planpet` y proyecto Vercel separado al momento del deploy.
 - [ ] Definir textos del póster (las fórmulas y fuentes de §6 sirven directo).
+
+## 11. Iteración 2 — funciones anti-abandono
+
+Origen: informes Solemne 1 y 2 del curso (preguntas abiertas del testeo: "¿qué pasa si el asignado no puede?" y "¿cómo asegurar uso constante?"). Principio de diseño: **solo refuerzo positivo** — el arquetipo (Paulina) siente culpa; nunca penalizar incumplimiento.
+
+### 11.1 Reasignación "Hoy no puedo"
+En modo Marcar, tocar una tarea **pendiente** abre un menú con: "✓ ¡Hecha!", "🙅 Pasar a `<integrante>`" (el con menos carga ese día, luego menor carga total; solo si hay >1 integrante) y "📅 Mover a mañana" (solo si día < domingo). Tocar una tarea **hecha** la des-marca directo, sin menú. Lógica pura en `src/lib/routine.ts` (`leastLoadedOther`).
+
+### 11.2 Tenencia responsable: registro + calendario sanitario
+- Wizard pregunta "¿Está inscrito en el Registro Nacional de Mascotas?" (`registered` en el estado). Si no: banner persistente en el planner con enlace a registratumascota.cl y botón "Ya está inscrito ✓" (refuerzo positivo al completar). Métrica citable en la feria: solo 27,4% de dueños cumple el registro (SUBDERE & PUC 2022, citado en Solemne 1).
+- Panel "Calendario sanitario" con hitos sugeridos según etapa de vida (`src/lib/health.ts`): plan de vacunas de cachorro, antirrábica anual, desparasitación interna/externa, control veterinario (semestral en senior). Cada hito se puede agregar como pendiente de prioridad alta con un toque. Frecuencias referenciales de guías veterinarias estándar; mismo disclaimer de §6.
+
+### 11.3 Modo pre-adopción (simulador público)
+Ruta `/simulador`, **sin registro** — usable por visitantes del stand sin perro. Reutiliza los motores de §6 y §7: con raza/tamaño/edad/peso estima (a) **horas de cuidado por semana** (minutos por tipo de tarea: paseo 20/30/40 min según energía; alimentación 10 min × comida; higiene 30; salud 15; compras 30) y (b) **costo mensual CLP** (alimento = g/día × 30,4 × precio por kg editable, default $4.500; salud preventiva prorrateada por tamaño $6.000–12.000; higiene por pelaje $5.000–12.000; +10% imprevistos). Valores referenciales 2026, editables, con desglose visible y disclaimer. Lógica pura en `src/lib/simulator.ts`. Objetivo: formalizar la evaluación previa que la adopción impulsiva omite (caso Paulina, Solemne 1).

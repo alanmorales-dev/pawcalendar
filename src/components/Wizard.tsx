@@ -61,6 +61,7 @@ export default function Wizard({ initial, onDone }: Props) {
   const [months, setMonths] = useState(initial ? String(initial.profile.ageMonths % 12) : '0');
   const [weight, setWeight] = useState(initial ? String(initial.profile.weightKg) : '');
   const [neutered, setNeutered] = useState(initial?.profile.neutered ?? false);
+  const [registered, setRegistered] = useState(initial?.registered ?? false);
 
   // paso 2: casa
   const [members, setMembers] = useState<string[]>(initial?.members ?? []);
@@ -163,6 +164,7 @@ export default function Wizard({ initial, onDone }: Props) {
       foodKcalPerKg: parseFloat(foodKcal),
       vetName: vetName.trim(),
       vetPhone: vetPhone.trim(),
+      registered,
       notes: initial?.notes ?? '',
       pending: initial?.pending ?? [],
       weekStart: mondayOf(new Date()),
@@ -285,6 +287,10 @@ export default function Wizard({ initial, onDone }: Props) {
               <label className="check-row full">
                 <input type="checkbox" checked={neutered} onChange={(e) => setNeutered(e.target.checked)} />
                 Está castrado/esterilizado
+              </label>
+              <label className="check-row full">
+                <input type="checkbox" checked={registered} onChange={(e) => setRegistered(e.target.checked)} />
+                Está inscrito en el Registro Nacional de Mascotas
               </label>
             </div>
           </>

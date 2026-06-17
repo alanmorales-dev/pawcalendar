@@ -31,6 +31,8 @@ export interface PlannerState {
   members: string[];
   mealTimes: string[];
   foodKcalPerKg: number;
+  /** inscrito en el Registro Nacional de Mascotas (SPEC §11.2) */
+  registered: boolean;
   vetName: string;
   vetPhone: string;
   notes: string;
@@ -49,6 +51,8 @@ export function loadState(): PlannerState | null {
     if (!raw) return null;
     const parsed = JSON.parse(raw) as PlannerState;
     if (parsed.version !== 1) return null;
+    // campo agregado en iteración 2: estados guardados antes no lo traen
+    if (typeof parsed.registered !== 'boolean') parsed.registered = false;
     return parsed;
   } catch {
     return null;

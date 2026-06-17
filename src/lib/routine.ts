@@ -69,6 +69,31 @@ export function generateWeek(profile: DogProfile, breed: Breed, members: string[
   return assignments;
 }
 
+/**
+ * "Hoy no puedo" (SPEC §11.1): a quién pasar una tarea — el integrante con
+ * menos carga ese día y, en empate, con menor carga semanal. null si no hay otro.
+ */
+export function leastLoadedOther(
+  assignments: Assignment[],
+  members: string[],
+  exclude: string,
+  day: number,
+): string | null {
+  const others = members.filter((m) => m !== exclude);
+  if (others.length === 0) return null;
+
+  const dayLoad = (m: string) => assignments.filter((a) => a.member === m && a.day === day).length;
+  const weekLoad = (m: string) => assignments.filter((a) => a.member === m).length;
+
+  let best = others[0];
+  for (const m of others) {
+    if (dayLoad(m) < dayLoad(best) || (dayLoad(m) === dayLoad(best) && weekLoad(m) < weekLoad(best))) {
+      best = m;
+    }
+  }
+  return best;
+}
+
 function walksPerDay(breed: Breed, stage: LifeStage): number {
   if (stage === 'cachorro') return 1; // pre-vacunas: salida/juego corto
   if (stage === 'senior') return 1;

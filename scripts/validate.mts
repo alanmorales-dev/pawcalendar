@@ -5,7 +5,9 @@
  */
 import { BREEDS, breedById } from '../src/lib/breeds.ts';
 import { buildFeedingPlan } from '../src/lib/feeding.ts';
-import { generateWeek } from '../src/lib/routine.ts';
+import { generateWeek, leastLoadedOther } from '../src/lib/routine.ts';
+import { healthMilestones } from '../src/lib/health.ts';
+import { estimateMonthlyCost, estimateWeeklyTime } from '../src/lib/simulator.ts';
 import type { Assignment, DogProfile } from '../src/lib/types.ts';
 
 const DAYS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
@@ -95,6 +97,55 @@ const s3 = showScenario(
 );
 check(s3.plan.merFactor === 1.5, 'factor 1.5 adulto castrado');
 check(s3.week.every((a: Assignment) => a.member === 'Alan'), 'hogar de 1: todo asignado a Alan');
+
+// ── iteración 2: reasignación "hoy no puedo" ──
+console.log(`\n━━━ Reasignación "hoy no puedo" ━━━`);
+{
+  const members = ['A', 'B', 'C'];
+  const week: Assignment[] = [
+    { member: 'A', day: 0, type: 'food', completed: false },
+    { member: 'A', day: 0, type: 'walk', completed: false },
+    { member: 'B', day: 0, type: 'walk', completed: false },
+  ];
+  // día 0: A tiene 2, B tiene 1, C tiene 0 → al pasar de A debe ir a C
+  check(leastLoadedOther(week, members, 'A', 0) === 'C', 'pasa al integrante con menos carga (C)');
+  // hogar de 1: no hay a quién pasar
+  check(leastLoadedOther(week, ['A'], 'A', 0) === null, 'hogar de 1: no hay destino (null)');
+}
+
+// ── iteración 2: calendario sanitario ──
+console.log(`\n━━━ Calendario sanitario ━━━`);
+{
+  const cachorro = healthMilestones(2, 'mediano');
+  const adulto = healthMilestones(36, 'mediano');
+  const senior = healthMilestones(108, 'mediano');
+  check(cachorro.some((m) => /vacuna/i.test(m.label)), 'cachorro: incluye plan de vacunas');
+  check(cachorro.some((m) => /registro/i.test(m.label)), 'cachorro: recuerda el Registro Nacional');
+  check(senior.some((m) => /6 meses/i.test(m.detail)), 'senior: control cada 6 meses');
+  check(adulto.length >= 3 && cachorro.length >= 3, 'cada etapa entrega varios hitos');
+}
+
+// ── iteración 2: simulador de pre-adopción ──
+console.log(`\n━━━ Simulador pre-adopción ━━━`);
+{
+  const labrador: DogProfile = {
+    name: 'x', breedId: 'labrador', size: 'grande', weightKg: 30, ageMonths: 36, neutered: false, goals: [],
+  };
+  const chihuahua: DogProfile = {
+    name: 'x', breedId: 'chihuahua', size: 'toy', weightKg: 2.5, ageMonths: 36, neutered: false, goals: [],
+  };
+  const tL = estimateWeeklyTime(labrador, breedById('labrador'));
+  const cL = estimateMonthlyCost(labrador, breedById('labrador'));
+  const cC = estimateMonthlyCost(chihuahua, breedById('chihuahua'));
+  console.log(`Labrador: ${tL.hoursPerWeek} h/sem · $${cL.totalCLP.toLocaleString('es-CL')}/mes`);
+  console.log(`Chihuahua: $${cC.totalCLP.toLocaleString('es-CL')}/mes`);
+  check(tL.hoursPerWeek > 0, 'tiempo semanal positivo');
+  check(cL.totalCLP > cC.totalCLP, 'perro grande cuesta más al mes que uno toy');
+  check(
+    cL.totalCLP === cL.items.reduce((a, i) => a + i.clp, 0),
+    'el total mensual es la suma de los ítems',
+  );
+}
 
 // ── catálogo ──
 console.log(`\n━━━ Catálogo ━━━`);
