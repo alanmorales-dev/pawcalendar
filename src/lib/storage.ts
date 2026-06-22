@@ -1,4 +1,4 @@
-import type { Assignment, Coat, DogProfile, Energy } from './types.ts';
+import type { Assignment, Coat, DogProfile, Energy, MedicalRecord } from './types.ts';
 
 /**
  * Persistencia v1: localStorage detrás de una interfaz simple.
@@ -41,6 +41,16 @@ export interface PlannerState {
   weekStart: string;
   assignments: Assignment[];
   history: WeekRecord[];
+  // ── perfil y PawPoints (SPEC §13) ──
+  /** foto de la mascota (miniatura dataURL) */
+  photo?: string;
+  medical: MedicalRecord[];
+  /** saldo de PawPoints (acumula entre semanas) */
+  points: number;
+  /** kg de alimento donados a fundaciones (500 pts = 1 kg) */
+  donatedKg: number;
+  /** ids de recompensas canjeadas (historial simple) */
+  redeemed: string[];
 }
 
 const KEY = 'planpet-v1';
@@ -51,8 +61,12 @@ export function loadState(): PlannerState | null {
     if (!raw) return null;
     const parsed = JSON.parse(raw) as PlannerState;
     if (parsed.version !== 1) return null;
-    // campo agregado en iteración 2: estados guardados antes no lo traen
+    // campos agregados en iteraciones posteriores: estados viejos no los traen
     if (typeof parsed.registered !== 'boolean') parsed.registered = false;
+    if (!Array.isArray(parsed.medical)) parsed.medical = [];
+    if (typeof parsed.points !== 'number') parsed.points = 0;
+    if (typeof parsed.donatedKg !== 'number') parsed.donatedKg = 0;
+    if (!Array.isArray(parsed.redeemed)) parsed.redeemed = [];
     return parsed;
   } catch {
     return null;

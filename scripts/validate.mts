@@ -9,6 +9,7 @@ import { generateWeek, leastLoadedOther } from '../src/lib/routine.ts';
 import { healthMilestones } from '../src/lib/health.ts';
 import { estimateMonthlyCost, estimateWeeklyTime } from '../src/lib/simulator.ts';
 import { buildPlanEmailHtml, buildPlanEmailSubject } from '../src/lib/email.ts';
+import { badges, pointsForCompletion, REWARDS } from '../src/lib/rewards.ts';
 import type { Assignment, DogProfile } from '../src/lib/types.ts';
 import type { PlannerState } from '../src/lib/storage.ts';
 
@@ -160,6 +161,7 @@ console.log(`\n━━━ Correo de bienvenida ━━━`);
     members: ['Alan', 'Vale'], mealTimes: ['08:00', '14:00', '20:00'], foodKcalPerKg: 3500,
     registered: false, vetName: '', vetPhone: '', notes: '', pending: [], weekStart: '2026-06-15',
     assignments: generateWeek(profile, breedById('border_collie'), ['Alan', 'Vale']), history: [],
+    medical: [], points: 0, donatedKg: 0, redeemed: [],
   };
   const html = buildPlanEmailHtml(state);
   check(buildPlanEmailSubject(state).includes('Luna'), 'el asunto menciona al perro');
@@ -169,6 +171,33 @@ console.log(`\n━━━ Correo de bienvenida ━━━`);
   check(html.includes('Registro Nacional'), 'recuerda el registro si no está inscrito');
   const htmlReg = buildPlanEmailHtml({ ...state, registered: true });
   check(!htmlReg.includes('Registro Nacional'), 'no muestra el recordatorio si ya está inscrito');
+}
+
+// ── iteración 3: PawPoints ──
+console.log(`\n━━━ PawPoints ━━━`);
+{
+  check(pointsForCompletion({ alreadyAwarded: false, hadPhoto: false, withPhoto: false }) === 10, 'tarea nueva sin foto: +10');
+  check(pointsForCompletion({ alreadyAwarded: false, hadPhoto: false, withPhoto: true }) === 15, 'tarea nueva con foto: +15');
+  check(pointsForCompletion({ alreadyAwarded: true, hadPhoto: false, withPhoto: true }) === 5, 'ya premiada, primera foto: +5');
+  check(pointsForCompletion({ alreadyAwarded: true, hadPhoto: false, withPhoto: false }) === 0, 're-marcar no vuelve a premiar: 0');
+  check(pointsForCompletion({ alreadyAwarded: true, hadPhoto: true, withPhoto: true }) === 0, 're-verificar foto: 0');
+
+  const donacion = REWARDS.find((r) => r.kind === 'donacion');
+  check(!!donacion && donacion.cost === 500, 'donar 1 kg cuesta 500 pts');
+  check(REWARDS.every((r) => r.cost > 0), 'todos los canjes tienen costo positivo');
+
+  const base: PlannerState = {
+    version: 1, emoji: '🐶',
+    profile: { name: 'Luna', breedId: 'mestizo', size: 'mediano', weightKg: 12, ageMonths: 36, neutered: true, goals: [] },
+    coat: 'corto', energy: 'media', members: ['Alan', 'Vale'], mealTimes: ['08:00', '18:00'], foodKcalPerKg: 3500,
+    registered: false, vetName: '', vetPhone: '', notes: '', pending: [], weekStart: '2026-06-15',
+    assignments: [], history: [], medical: [], points: 0, donatedKg: 0, redeemed: [],
+  };
+  const b = (st: PlannerState, id: string) => badges(st).find((x) => x.id === id)?.earned;
+  check(b(base, 'equipo_unido') === true, 'badge equipo unido con 2+ integrantes');
+  check(b(base, 'registro_dia') === false, 'badge registro bloqueado si no inscrita');
+  check(b({ ...base, registered: true }, 'registro_dia') === true, 'badge registro al inscribir');
+  check(b({ ...base, donatedKg: 1 }, 'corazon_solidario') === true, 'badge solidario al donar');
 }
 
 // ── catálogo ──

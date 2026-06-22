@@ -85,7 +85,7 @@ export default function SimuladorPage() {
       <div className="sim-grid">
         {/* FORMULARIO */}
         <div className="panel">
-          <div className="panel-header notes-h"><span className="panel-icon">🐶</span> El perro que piensas adoptar</div>
+          <div className="panel-header notes-h">El perro que piensas adoptar</div>
           <div className="panel-body" style={{ paddingTop: 12, display: 'flex', flexDirection: 'column', gap: 12 }}>
             <div className="field">
               <label>Raza</label>
@@ -175,7 +175,7 @@ export default function SimuladorPage() {
               </div>
 
               <div className="panel">
-                <div className="panel-header meal-h"><span className="panel-icon">⏱️</span> Tiempo semanal</div>
+                <div className="panel-header meal-h">Tiempo semanal</div>
                 <div className="panel-body" style={{ paddingTop: 8 }}>
                   {result.time.breakdown
                     .filter((b) => b.hours > 0)
@@ -189,7 +189,7 @@ export default function SimuladorPage() {
               </div>
 
               <div className="panel">
-                <div className="panel-header goal-h"><span className="panel-icon">💸</span> Gasto mensual</div>
+                <div className="panel-header goal-h">Gasto mensual</div>
                 <div className="panel-body" style={{ paddingTop: 8 }}>
                   {result.cost.items.map((it) => (
                     <div className="hist-row" key={it.label}>
@@ -204,10 +204,10 @@ export default function SimuladorPage() {
               </div>
 
               <div className="sim-cta">
-                <strong>¿Te hace sentido? 🐾</strong>
+                <strong>¿Te hace sentido?</strong>
                 <span>Adoptar es un compromiso de años. Si ya tienes a tu perro, organiza su cuidado con la familia:</span>
                 <Link className="btn-primary" href="/">
-                  Crear mi planificador →
+                  Crear mi planificador
                 </Link>
               </div>
             </>

@@ -170,6 +170,11 @@ export default function Wizard({ initial, onDone }: Props) {
       weekStart: mondayOf(new Date()),
       assignments,
       history: initial?.history ?? [],
+      photo: initial?.photo,
+      medical: initial?.medical ?? [],
+      points: initial?.points ?? 0,
+      donatedKg: initial?.donatedKg ?? 0,
+      redeemed: initial?.redeemed ?? [],
     });
   }
 
@@ -184,7 +189,7 @@ export default function Wizard({ initial, onDone }: Props) {
         <div className="logo-area">
           <div className="pet-avatar">{emoji}</div>
           <div className="logo-text">
-            <h1>PlanPet</h1>
+            <h1>PawCalendar</h1>
             <p>Arma el planificador de cuidado de tu perro</p>
           </div>
         </div>
@@ -199,7 +204,7 @@ export default function Wizard({ initial, onDone }: Props) {
 
         {step === 0 && (
           <>
-            <div className="wizard-title">Tu perro 🐶</div>
+            <div className="wizard-title">Tu perro</div>
             <div className="wizard-sub">Con esto calculamos su alimentación y su rutina ideal.</div>
             <div className="wizard-grid">
               <div className="field full">
@@ -298,7 +303,7 @@ export default function Wizard({ initial, onDone }: Props) {
 
         {step === 1 && (
           <>
-            <div className="wizard-title">Tu casa 🏠</div>
+            <div className="wizard-title">Tu casa</div>
             <div className="wizard-sub">¿Quiénes van a cuidar a {name.trim() || 'tu perro'}? Las tareas se reparten entre todos.</div>
             <div className="pend-add">
               <input
@@ -328,7 +333,7 @@ export default function Wizard({ initial, onDone }: Props) {
 
         {step === 2 && (
           <>
-            <div className="wizard-title">Objetivos 🎯</div>
+            <div className="wizard-title">Objetivos</div>
             <div className="wizard-sub">Opcional — ajustan la rutina y se vuelven metas visibles en tu planificador.</div>
             <div className="goal-cards">
               {GOALS.map((g) => (
@@ -344,7 +349,7 @@ export default function Wizard({ initial, onDone }: Props) {
 
         {step === 3 && plan && mealTimes && (
           <>
-            <div className="wizard-title">Plan de {name.trim()} 🍽️</div>
+            <div className="wizard-title">Plan de {name.trim()}</div>
             <div className="wizard-sub">Calculado con fórmulas de nutrición veterinaria (NRC/WSAVA). Puedes ajustar horarios y alimento.</div>
             <div className="summary-box">
               <strong>{plan.kcalPerDay} kcal/día</strong> → <strong>{plan.gramsPerDay} g</strong> de pienso ({plan.cupsPerDay} tazas)
@@ -399,7 +404,7 @@ export default function Wizard({ initial, onDone }: Props) {
             </button>
           ) : (
             <button type="button" className="btn-primary" onClick={finish}>
-              {initial ? 'Guardar y regenerar semana 🪄' : 'Crear mi planificador 🚀'}
+              {initial ? 'Guardar y regenerar semana' : 'Crear mi planificador'}
             </button>
           )}
         </div>

@@ -15,7 +15,7 @@ const quicksand = Quicksand({
 });
 
 export const metadata: Metadata = {
-  title: 'PlanPet · Planificador de cuidado de tu perro',
+  title: 'PawCalendar · Planificador de cuidado de tu perro',
   description:
     'Configura el perfil de tu perro y obtén un planificador semanal de cuidado personalizado. Proyecto universitario — Feria académica U. Mayor.',
 };

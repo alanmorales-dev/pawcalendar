@@ -142,3 +142,14 @@ Decisión 2026-06-17: en la feria la persona usa la app sin login (localStorage)
 - **Config:** `NEXT_PUBLIC_PLANPET_WEBHOOK` (URL del Apps Script) y `NEXT_PUBLIC_PLANPET_TOKEN` en `.env.local` (ver `.env.local.example`). Sin webhook configurado, el botón avisa en vez de fallar.
 - **Contenido (`src/lib/email.ts`, puro y testeable):** ración diaria y horarios, resumen de la rutina semanal, próximo hito sanitario, recordatorio de registro si no está inscrito, disclaimer y pie "proyecto universitario".
 - **Principio:** pantalla primero, correo como bonus — el plan siempre se ve en pantalla; un fallo de correo nunca rompe la demo.
+
+## 13. Iteración 3 — perfil, PawPoints y rediseño (feria)
+
+Decisión 2026-06-21 (con el equipo, a partir de un spec de features). Marca: la app se llama **PawCalendar** y los puntos **PawPoints** (el repo/carpeta sigue siendo `planpet`). Todo client-side y ficticio: es un prototipo de feria, no un producto comercial. Lo del modelo de negocio (aliados que pagan comisión 15%, push real, geolocalización, QR con veterinarias reales, descuentos reales) queda como **roadmap del póster**, no en el código.
+
+- **Perfil de mascota:** foto (miniatura JPEG en localStorage vía `src/lib/photo.ts`, se ve en el header y en el panel Perfil), especie (perro), raza, edad, peso, e **historial médico** (vacuna / control / medicamento) editable.
+- **Verificación de tareas por foto (diferenciador 1):** en modo Marcar, una tarea pendiente ofrece "Verificar con foto" → sube miniatura, queda verificada (anillo verde) y da bonus de PawPoints. Sin hardware externo.
+- **PawPoints (diferenciador 2, `src/lib/rewards.ts`):** +10 por completar, +15 si se verifica con foto (o +5 de bonus si ya estaba hecha); `awarded` por tarea evita doble conteo y se resetea al cerrar la semana, pero el saldo persiste. Canjes ficticios (`REWARDS`: tema de perfil, descuentos en vet/peluquería/pet shop, donación), insignias derivadas del estado (`badges`), y **donación a fundaciones** (500 pts = 1 kg → `donatedKg`), que conecta con el propósito social anti-abandono.
+- **Asignación familiar (diferenciador 3):** ya existía (rutina balanceada + "hoy no puedo"); se refuerza con el badge "Equipo unido" y la métrica de reparto.
+- **Rediseño / menos emojis:** se quitaron los emojis decorativos de encabezados de panel, botones, toasts y títulos. Se conservan solo los **íconos funcionales** de la grilla y la leyenda (alimentación/paseo/higiene/salud/compras) y el avatar de la mascota.
+- Migración de estado: `loadState` completa `medical`, `points`, `donatedKg`, `redeemed` para estados guardados antes.

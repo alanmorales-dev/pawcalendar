@@ -29,7 +29,7 @@ const TASK_LABEL: Record<TaskType, string> = {
 };
 
 export function buildPlanEmailSubject(state: PlannerState): string {
-  return `🐾 El plan de cuidado de ${state.profile.name} — PlanPet`;
+  return `El plan de cuidado de ${state.profile.name} — PawCalendar`;
 }
 
 export function buildPlanEmailHtml(state: PlannerState): string {
@@ -68,7 +68,7 @@ export function buildPlanEmailHtml(state: PlannerState): string {
         <tr><td style="background:linear-gradient(135deg,${PALETTE.pink},${PALETTE.purple});padding:28px 24px;text-align:center">
           <div style="font-size:44px;line-height:1">${emoji}</div>
           <div style="color:#fff;font-size:22px;font-weight:800;margin-top:6px">El plan de ${profile.name} ya está listo</div>
-          <div style="color:#ffffffcc;font-size:14px;margin-top:4px">Gracias por usar PlanPet 🐾</div>
+          <div style="color:#ffffffcc;font-size:14px;margin-top:4px">Gracias por usar PawCalendar</div>
         </td></tr>
         <tr><td style="padding:24px">
           <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
@@ -94,7 +94,7 @@ export function buildPlanEmailHtml(state: PlannerState): string {
           </table>
         </td></tr>
         <tr><td style="background:${PALETTE.bg};padding:16px 24px;text-align:center;font-size:11px;color:${PALETTE.muted}">
-          PlanPet · Proyecto universitario — Feria de Innovación, Universidad Mayor
+          PawCalendar · Proyecto universitario — Feria de Innovación, Universidad Mayor
         </td></tr>
       </table>
     </td></tr>

@@ -52,4 +52,16 @@ export interface Assignment {
   day: number;
   type: TaskType;
   completed: boolean;
+  /** miniatura (dataURL) si se verificó con foto; verificada = completed && !!photo */
+  photo?: string;
+  /** si ya sumó PawPoints esta semana (evita doble conteo al re-marcar) */
+  awarded?: boolean;
+}
+
+export interface MedicalRecord {
+  id: string;
+  kind: 'vacuna' | 'control' | 'medicamento';
+  name: string;
+  /** yyyy-mm-dd */
+  date: string;
 }
