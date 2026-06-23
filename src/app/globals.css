@@ -213,6 +213,8 @@ input, select, textarea { font-family: inherit; color: var(--text); }
 .small-btn:hover { color: var(--purple); transform: translateY(-1px); }
 
 .table-wrap { overflow-x: auto; }
+/* al abrir el menú "hoy no puedo" la grilla crece para mostrarlo completo sin scrollear */
+.table-wrap.menu-open { padding-bottom: 210px; }
 
 table { width: 100%; border-collapse: collapse; min-width: 560px; }
 
@@ -987,7 +989,8 @@ tbody td.member-col { text-align: left; padding: 8px 12px 8px 24px; }
 /* RESPONSIVE */
 @media (max-width: 768px) {
   .main { grid-template-columns: 1fr; }
-  .header { flex-direction: column; align-items: flex-start; }
+  .header { flex-direction: column; align-items: center; text-align: center; }
+  .header-right { justify-content: center; }
   .wizard-grid { grid-template-columns: 1fr; }
   .goal-cards { grid-template-columns: 1fr; }
   .sim-grid { grid-template-columns: 1fr; }

@@ -421,7 +421,7 @@ export default function Planner({ initial, onReconfigure }: Props) {
               <button className="small-btn" onClick={closeWeek}>Nueva semana</button>
             </div>
           </div>
-          <div className="table-wrap">
+          <div className={`table-wrap ${menuIdx !== null ? 'menu-open' : ''}`}>
             <table>
               <thead>
                 <tr>
