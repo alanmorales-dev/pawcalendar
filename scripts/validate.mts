@@ -176,6 +176,8 @@ console.log(`\n━━━ Correo de bienvenida ━━━`);
   check(!html.includes(' — '), 'el correo no usa guión largo con espacios');
   check(!html.includes('Healthy Tails'), 'se reemplazó la marca original del template');
   check(!html.includes('view_in_browser') && !html.includes('123 Anywhere'), 'se quitaron los placeholders del template');
+  check(!html.includes('github'), 'el correo no incluye link a github');
+  check(!html.includes('github'), 'el correo no enlaza a GitHub');
 }
 
 // ── iteración 3: PawPoints ──
