@@ -165,14 +165,14 @@ console.log(`\n━━━ Correo de bienvenida ━━━`);
   };
   const html = buildPlanEmailHtml(state);
   check(buildPlanEmailSubject(state).includes('Luna'), 'el asunto menciona al perro');
+  check(!buildPlanEmailSubject(state).includes(' — '), 'el asunto no usa guión largo con espacios');
   check(html.includes('Luna'), 'el correo menciona al perro');
-  check(html.includes('Distribución de la semana'), 'incluye la grilla visual de la semana');
-  check(html.includes('Alan') && html.includes('Vale'), 'la grilla lista a los integrantes');
-  check(html.includes('>Lun<') && html.includes('>Dom<'), 'la grilla tiene encabezados de días');
-  check(/g al día/.test(html), 'incluye la ración diaria');
-  check(html.includes('Registro Nacional'), 'recuerda el registro si no está inscrito');
-  const htmlReg = buildPlanEmailHtml({ ...state, registered: true });
-  check(!htmlReg.includes('Registro Nacional'), 'no muestra el recordatorio si ya está inscrito');
+  check(html.includes('PawCalendar'), 'mantiene la marca PawCalendar');
+  check(/g de alimento al día/.test(html), 'incluye datos de alimentación personalizados');
+  check(html.includes('El cuidado continúa'), 'usa los textos invented del template');
+  check(!html.includes(' — '), 'el correo no usa guión largo con espacios');
+  check(!html.includes('Healthy Tails'), 'se reemplazó la marca original del template');
+  check(!html.includes('view_in_browser') && !html.includes('123 Anywhere'), 'se quitaron los placeholders del template');
 }
 
 // ── iteración 3: PawPoints ──

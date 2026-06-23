@@ -1,161 +1,71 @@
 import { buildFeedingPlan } from './feeding.ts';
 import { healthMilestones } from './health.ts';
 import type { PlannerState } from './storage.ts';
-import type { TaskType } from './types.ts';
 
 /**
  * Correo de bienvenida / resumen del plan (SPEC §12).
- * Todo el contenido se arma acá (puro y testeable); el Apps Script solo lo reenvía.
- * HTML con estilos inline porque los clientes de correo ignoran <style>/CSS externo.
+ * Diseño fijo (template Canva de PawCalendar); solo se reemplazan los textos
+ * personalizados, que se generan automáticamente. Regla: nunca usar " — ".
  */
 
-const PALETTE = {
-  bg: '#f0f4ff',
-  card: '#ffffff',
-  text: '#2d2d4e',
-  muted: '#8888aa',
-  pink: '#ff6b9d',
-  purple: '#9b5de5',
-  green: '#2ec4b6',
-  blue: '#5b8cff',
-  line: '#edecf5',
-};
+const APP = 'https://pawcalendar.vercel.app';
+const REPO = 'https://github.com/alanmorales-dev/pawcalendar';
 
-const DAYS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
-const DAY_FG = ['#5b8cff', '#ff6b9d', '#2ec4b6', '#9b5de5', '#f7b731', '#ff884b', '#ff4757'];
-const MEMBER_BG = ['#ffe0ee', '#dce7ff', '#ecdeff', '#fff3c7', '#d4f5f2', '#ffe5d6'];
-const MEMBER_FG = ['#ff6b9d', '#5b8cff', '#9b5de5', '#b8860b', '#2ec4b6', '#ff884b'];
-
-const TASK_LABEL: Record<TaskType, string> = {
-  food: 'Alimentación',
-  walk: 'Paseo',
-  bath: 'Higiene',
-  health: 'Salud',
-  shop: 'Compras',
-};
-const TASK_ICON: Record<TaskType, string> = { food: '🍚', walk: '🦮', bath: '🛁', health: '💊', shop: '🛒' };
-const TASK_BG: Record<TaskType, string> = {
-  food: '#ffe0ee',
-  walk: '#d4f5f2',
-  bath: '#dce7ff',
-  health: '#fff3c7',
-  shop: '#ecdeff',
-};
+function esc(s: string): string {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
 
 export function buildPlanEmailSubject(state: PlannerState): string {
-  return `El plan de cuidado de ${state.profile.name} — PawCalendar`;
-}
-
-/** Grilla visual de la semana (solo lectura, replica la vista del planificador). */
-function weekGridHtml(state: PlannerState): string {
-  const head =
-    `<td style="padding:6px 2px"></td>` +
-    DAYS.map(
-      (d, i) =>
-        `<td style="padding:6px 2px;text-align:center;font-size:11px;font-weight:800;color:${DAY_FG[i]};text-transform:uppercase">${d}</td>`,
-    ).join('');
-
-  const rows = state.members
-    .map((m, mi) => {
-      const tag = `<span style="display:inline-block;background:${MEMBER_BG[mi % 6]};color:${MEMBER_FG[mi % 6]};padding:4px 10px;border-radius:50px;font-size:12px;font-weight:800;white-space:nowrap">${m}</span>`;
-      const cells = DAYS.map((_, d) => {
-        const chips = state.assignments
-          .filter((a) => a.member === m && a.day === d)
-          .map(
-            (a) =>
-              `<span style="display:inline-block;width:24px;height:24px;line-height:22px;text-align:center;background:${TASK_BG[a.type]};border-radius:7px;font-size:13px;margin:1px;${a.completed ? 'box-shadow:inset 0 0 0 2px ' + PALETTE.green + ';' : ''}">${TASK_ICON[a.type]}</span>`,
-          )
-          .join('');
-        return `<td style="padding:4px 2px;text-align:center;border-top:1px solid ${PALETTE.line}">${chips || `<span style="color:#cfcde0">·</span>`}</td>`;
-      }).join('');
-      return `<tr><td style="padding:5px 6px 5px 0;border-top:1px solid ${PALETTE.line}">${tag}</td>${cells}</tr>`;
-    })
-    .join('');
-
-  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse"><tr>${head}</tr>${rows}</table>`;
-}
-
-function legendHtml(): string {
-  return (['food', 'walk', 'bath', 'health', 'shop'] as TaskType[])
-    .map(
-      (t) =>
-        `<span style="display:inline-block;margin:2px 12px 2px 0;font-size:11px;color:${PALETTE.muted};font-weight:700;white-space:nowrap"><span style="display:inline-block;width:16px;height:16px;line-height:16px;text-align:center;background:${TASK_BG[t]};border-radius:5px;font-size:11px;vertical-align:middle;margin-right:3px">${TASK_ICON[t]}</span>${TASK_LABEL[t]}</span>`,
-    )
-    .join('');
+  return `El plan de cuidado de ${state.profile.name} ya está listo`;
 }
 
 export function buildPlanEmailHtml(state: PlannerState): string {
-  const { profile, emoji } = state;
-  const plan = buildFeedingPlan(profile, { foodKcalPerKg: state.foodKcalPerKg });
-  const next = healthMilestones(profile.ageMonths, profile.size)[0];
+  const name = esc(state.profile.name);
+  const plan = buildFeedingPlan(state.profile, { foodKcalPerKg: state.foodKcalPerKg });
+  const next = healthMilestones(state.profile.ageMonths, state.profile.size)[0];
 
-  const total = state.assignments.length;
-  const done = state.assignments.filter((a) => a.completed).length;
-  const stats =
-    `<span style="display:inline-block;background:${PALETTE.green}22;color:${PALETTE.green};font-size:12px;font-weight:700;padding:3px 10px;border-radius:50px;margin-right:6px">${done} hechas</span>` +
-    `<span style="display:inline-block;background:${PALETTE.pink}22;color:${PALETTE.pink};font-size:12px;font-weight:700;padding:3px 10px;border-radius:50px">${total - done} pendientes</span>`;
+  const title = `El plan de ${name} ya está listo`;
+  const subtitle = `Este es el resumen de cuidados que armaron para ${name}.`;
+  const feedingLine = `${plan.gramsPerDay} g de alimento al día en ${plan.mealsPerDay} comidas`;
+  const healthLine = next ? `Próximo en salud: ${esc(next.label)}` : 'Mantén su carnet sanitario al día';
+  const bodyIntro = `Gracias por cuidar a ${name} con dedicación. `;
 
-  const avatar = state.photo
-    ? `<img src="${state.photo}" width="76" height="76" alt="${profile.name}" style="width:76px;height:76px;border-radius:50%;object-fit:cover;border:3px solid #ffffffaa" />`
-    : `<div style="font-size:44px;line-height:1">${emoji}</div>`;
-
-  const regBlock = state.registered
-    ? ''
-    : `<tr><td style="padding:14px 18px;background:#fff3c7;border-radius:12px;font-size:13px;color:${PALETTE.text};line-height:1.5">
-         <strong>Recuerda inscribir a ${profile.name}</strong> en el Registro Nacional de Mascotas
-         (<a href="https://www.registratumascota.cl" style="color:${PALETTE.purple}">registratumascota.cl</a>). Es obligatorio por ley.
-       </td></tr><tr><td style="height:12px"></td></tr>`;
-
-  const card = (title: string, inner: string) =>
-    `<tr><td style="padding:16px 18px;background:${PALETTE.bg};border-radius:14px">
-       <div style="font-size:13px;font-weight:800;color:${PALETTE.purple};text-transform:uppercase;letter-spacing:0.04em;margin-bottom:10px">${title}</div>
-       ${inner}
-     </td></tr><tr><td style="height:12px"></td></tr>`;
-
-  return `<!DOCTYPE html><html><body style="margin:0;padding:0;background:${PALETTE.bg};font-family:Arial,Helvetica,sans-serif">
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${PALETTE.bg};padding:24px 12px">
-    <tr><td align="center">
-      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:${PALETTE.card};border-radius:20px;overflow:hidden;box-shadow:0 4px 20px rgba(80,80,180,0.1)">
-        <tr><td style="background:linear-gradient(135deg,${PALETTE.pink},${PALETTE.purple});padding:26px 24px;text-align:center">
-          ${avatar}
-          <div style="color:#fff;font-size:22px;font-weight:800;margin-top:8px">El plan de ${profile.name} ya está listo</div>
-          <div style="color:#ffffffcc;font-size:14px;margin-top:4px">Gracias por usar PawCalendar</div>
-        </td></tr>
-        <tr><td style="padding:24px">
-          <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
-            ${card(
-              'Distribución de la semana',
-              `<div style="margin-bottom:12px">${stats}</div>
-               ${weekGridHtml(state)}
-               <div style="margin-top:14px">${legendHtml()}</div>`,
-            )}
-            ${card(
-              'Alimentación',
-              `<div style="font-size:15px;color:${PALETTE.text};font-weight:700;line-height:1.6">
-                 ${plan.gramsPerDay} g al día (${plan.cupsPerDay} tazas) en ${plan.mealsPerDay} comidas de ${plan.gramsPerMeal} g.
-               </div>
-               <div style="font-size:13px;color:${PALETTE.muted};margin-top:6px">Horarios: ${state.mealTimes.join(' · ')}</div>`,
-            )}
-            ${next
-              ? card(
-                  'Próximo en salud',
-                  `<div style="font-size:14px;color:${PALETTE.text};font-weight:700">${next.label}</div>
-                   <div style="font-size:12px;color:${PALETTE.muted};margin-top:4px">${next.detail}</div>`,
-                )
-              : ''}
-            ${regBlock}
-            <tr><td style="font-size:11px;color:${PALETTE.muted};font-style:italic;line-height:1.5;padding-top:4px">
-              Plan orientativo: no reemplaza la indicación de tu veterinario/a.
-            </td></tr>
-          </table>
-        </td></tr>
-        <tr><td style="background:${PALETTE.bg};padding:16px 24px;text-align:center;font-size:11px;color:${PALETTE.muted}">
-          PawCalendar · Proyecto universitario — Feria de Innovación, Universidad Mayor
-        </td></tr>
-      </table>
-    </td></tr>
-  </table>
-  </body></html>`;
+  return `<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office"><head><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"><meta name="format-detection" content="telephone=no, date=no, address=no, email=no"><meta name="x-apple-disable-message-reformatting"><style>body{margin:0;padding:0}table{mso-table-lspace:0;mso-table-rspace:0}p,span,h1,h2,h3,h4,h5,h6{margin:0;padding:0}p{line-height:inherit}a[x-apple-data-detectors]{color:inherit!important;text-decoration:inherit!important}#MessageViewBody a{color:inherit;text-decoration:none}img+div{display:none}.ecw{width:100%!important;min-width:0!important}</style><!--[if mso]><div>
+                <noscript>
+                  <xml>
+                    <w:WordDocument xmlns:w="urn:schemas-microsoft-com:office:word">
+                      <w:DontUseAdvancedTypographyReadingMail/>
+                    </w:WordDocument>
+                    <o:OfficeDocumentSettings>
+                      <o:AllowPNG/>
+                      <o:PixelsPerInch>96</o:PixelsPerInch>
+                    </o:OfficeDocumentSettings>
+                  </xml>
+                </noscript></div><![endif]--><!--[if !mso]><!--><style>@media (max-width:1px){
+.l0-c0,.l0-c1,.l0-c2{display:block!important;width:100%!important}
+.l0-s0,.l0-s1{display:block!important;width:auto!important;height:16px;font-size:0}
+}</style><!--<![endif]--><!--[if !mso]><!--><style>@media (max-width:450px){
+.l1-c0,.l1-c1{display:block!important;width:100%!important}
+.l1-s0{display:block!important;width:auto!important;height:16px;font-size:0}
+.layout-1 .ebi-mw-410{max-width:410px!important}
+}</style><!--<![endif]--><!--[if !mso]><!--><style>@media (max-width:450px){
+.l2-c0,.l2-c1{display:block!important;width:100%!important}
+.l2-s0{display:block!important;width:auto!important;height:16px;font-size:0}
+}</style><!--<![endif]--><!--[if !mso]><!--><style>@media (max-width:200px){
+.l3-c0,.l3-c1,.l3-c2{display:block!important;width:100%!important}
+.l3-s0,.l3-s1{display:block!important;width:auto!important;height:16px;font-size:0}
+}</style><!--<![endif]--><style>@media(max-width:550px){.ers-fs-187{font-size:17.4px!important}.ers-fs-333{font-size:24.7px!important}}</style></head><body style="width:100%;-webkit-text-size-adjust:100%;text-size-adjust:100%;background-color:#f0f1f5;margin:0;padding:0"><table width="100%" border="0" cellpadding="0" cellspacing="0" bgcolor="#f0f1f5" style="background-color:#f0f1f5"><tbody><tr><td style="background-color:#f0f1f5"><!--[if mso]><center>
+                    <table align="center" border="0" cellpadding="0" cellspacing="0" width="600">
+                      <tbody>
+                        <tr>
+                          <td><![endif]--><table align="center" width="600" border="0" cellpadding="0" cellspacing="0" role="presentation" class="ecw" style="max-width:600px;min-height:600px;margin:0 auto;background-color:#30a7d7;width:600px;min-width:600px"><tbody><tr><td style="vertical-align:top"></td></tr><tr><td style="vertical-align:top"><table border="0" cellpadding="0" cellspacing="0" class="layout-0" align="center" style="display:table;border-spacing:0px;border-collapse:separate;width:100%;max-width:100%;table-layout:fixed;margin:0 auto;background-color:#f98cbd"><tbody><tr><td style="text-align:center;padding:20.819908125778817px 24px"><table border="0" cellpadding="0" cellspacing="0" style="border-spacing:0px;border-collapse:separate;width:100%;max-width:552px;table-layout:fixed;margin:0 auto"><tbody><tr><td width="16.46%" class="l0-c0" style="width:16.46%;box-sizing:border-box;vertical-align:middle;background-color:#f98cbd"><table border="0" cellpadding="0" cellspacing="0" style="border-spacing:0px;border-collapse:separate;width:100%;table-layout:fixed"><tbody><tr><td><table align="center" width="100%" border="0" cellpadding="0" cellspacing="0" role="presentation" style="color:#000;font-style:normal;font-weight:normal;font-size:16px;line-height:1.4;letter-spacing:0;text-align:left;direction:ltr;border-collapse:collapse;font-family:Arial, Helvetica, sans-serif;white-space:normal;word-wrap:break-word;word-break:break-word"><tbody><tr><td><table cellpadding="0" cellspacing="0" border="0" style="width:100%"><tbody><tr><td align="center"><!--[if mso]><table cellpadding="0" cellspacing="0" border="0" width="23" style="width:23px"><tbody><tr><td><![endif]--><table cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:23px"><tbody><tr><td style="width:100%"><img src="https://6h4f1wynnfi3az0iuxasnf0w1miw0eyibh4nwfx3k14.canva-cdn.email/5b3f2f6dad2a6bde5909a391704c168d.png" width="23" height="22" style="display:block;width:100%;height:auto;max-width:100%"></td></tr></tbody></table><!--[if mso]></td></tr></tbody></table><![endif]--></td></tr></tbody></table></td></tr></tbody></table></td></tr></tbody></table></td><td width="0" class="l0-s0" style="width:0;box-sizing:border-box;font-size:0">&nbsp;</td><td width="67.07%" class="l0-c1" style="width:67.07%;box-sizing:border-box;vertical-align:middle;background-color:#f98cbd"><table border="0" cellpadding="0" cellspacing="0" style="border-spacing:0px;border-collapse:separate;width:100%;table-layout:fixed"><tbody><tr><td style="padding:5px"><table align="center" width="100%" border="0" cellpadding="0" cellspacing="0" role="presentation" style="color:#000;font-style:normal;font-weight:normal;font-size:16px;line-height:1.4;letter-spacing:0;text-align:left;direction:ltr;border-collapse:collapse;font-family:Arial, Helvetica, sans-serif;white-space:normal;word-wrap:break-word;word-break:break-word"><tbody><tr><td dir="ltr" style="color:#ffffff;font-size:16px;letter-spacing:-0.02em;font-family:Helvetica, Arial, sans-serif;white-space:pre-wrap;text-align:center;line-height:1;mso-line-height-alt:16px">PawCalendar<br></td></tr></tbody></table></td></tr></tbody></table></td><td width="0" class="l0-s1" style="width:0;box-sizing:border-box;font-size:0">&nbsp;</td><td width="16.46%" class="l0-c2" style="width:16.46%;box-sizing:border-box;vertical-align:middle;background-color:#f98cbd"><table border="0" cellpadding="0" cellspacing="0" style="border-spacing:0px;border-collapse:separate;width:100%;table-layout:fixed"><tbody><tr><td style="padding:5px"><table align="center" width="100%" border="0" cellpadding="0" cellspacing="0" role="presentation" style="color:#000;font-style:normal;font-weight:normal;font-size:16px;line-height:1.4;letter-spacing:0;text-align:left;direction:ltr;border-collapse:collapse;font-family:Arial, Helvetica, sans-serif;white-space:normal;word-wrap:break-word;word-break:break-word"><tbody><tr><td><table cellpadding="0" cellspacing="0" border="0" style="width:100%"><tbody><tr><td align="center"><!--[if mso]><table cellpadding="0" cellspacing="0" border="0" width="23" style="width:23px"><tbody><tr><td><![endif]--><table cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:23px"><tbody><tr><td style="width:100%"><img src="https://6h4f1wynnfi3az0iuxasnf0w1miw0eyibh4nwfx3k14.canva-cdn.email/44a5723f7a1516d8947f2ecb71e525bd.png" width="23" height="22" style="display:block;width:100%;height:auto;max-width:100%"></td></tr></tbody></table><!--[if mso]></td></tr></tbody></table><![endif]--></td></tr></tbody></table></td></tr></tbody></table></td></tr></tbody></table></td></tr></tbody></table></td></tr></tbody></table></td></tr><tr><td style="vertical-align:top;padding:0px
+           0px
+           0px
+           0px"><table align="center" width="100%" border="0" cellpadding="0" cellspacing="0" role="presentation"><tbody><tr><td style="padding:24px 0 24px 0;vertical-align:top"><table align="center" width="100%" border="0" cellpadding="0" cellspacing="0" role="presentation" style="color:#000;font-style:normal;font-weight:normal;font-size:16px;line-height:1.4;letter-spacing:0;text-align:left;direction:ltr;border-collapse:collapse;font-family:Arial, Helvetica, sans-serif;white-space:normal;word-wrap:break-word;word-break:break-word"><tbody><tr><td style="padding:0px 0px 16px"><table cellpadding="0" cellspacing="0" border="0" style="width:100%"><tbody><tr><td align="center"><table cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:600px"><tbody><tr><td style="width:100%"><img src="https://6h4f1wynnfi3az0iuxasnf0w1miw0eyibh4nwfx3k14.canva-cdn.email/b3d74dadf396ab7a99cbb56a84f2b739.jpg" width="600" height="684" style="display:block;width:100%;height:auto;max-width:100%"></td></tr></tbody></table></td></tr></tbody></table></td></tr><tr><td dir="ltr" class="ers-fs-187" style="color:#faf6f1;font-size:18.7px;font-family:Helvetica, Arial, sans-serif;white-space:pre-wrap;text-align:center;padding:0px 24px 16px;line-height:1.2;mso-line-height-alt:22.4px;text-decoration:none">&nbsp;</td></tr><tr><td dir="ltr" class="ers-fs-187" style="color:#faf6f1;font-size:18.7px;font-family:Helvetica, Arial, sans-serif;white-space:pre-wrap;text-align:center;padding:0px 24px 16px;line-height:1.2;mso-line-height-alt:22.4px;text-decoration:none">&nbsp;</td></tr><tr><td dir="ltr" class="ers-fs-333" style="color:#faf6f1;font-size:33.3px;font-weight:700;font-family:&quot;Trebuchet MS&quot;, Helvetica, sans-serif;white-space:pre-wrap;text-align:center;padding:0px 24px 16px;line-height:1.2;mso-line-height-alt:40px">${title}<br></td></tr><tr><td dir="ltr" class="ers-fs-187" style="color:#faf6f1;font-size:18.7px;font-family:Helvetica, Arial, sans-serif;white-space:pre-wrap;text-align:center;padding:0px 24px 16px;line-height:1.2;mso-line-height-alt:22.4px">${subtitle}<br><br></td></tr><tr><td style="padding:0px 24px 16px"><table border="0" cellpadding="0" cellspacing="0" class="layout-1" align="center" style="display:table;border-spacing:0px;border-collapse:separate;width:100%;max-width:100%;table-layout:fixed;margin:0 auto"><tbody><tr><td style="text-align:center"><table border="0" cellpadding="0" cellspacing="0" style="border-spacing:0px;border-collapse:separate;width:100%;max-width:552px;table-layout:fixed;margin:0 auto"><tbody><tr><td width="48.55%" class="l1-c0" style="width:48.55%;box-sizing:border-box;vertical-align:top;background-color:#f98cbd;border-top-left-radius:15px;border-top-right-radius:15px;border-bottom-left-radius:15px;border-bottom-right-radius:15px"><table border="0" cellpadding="0" cellspacing="0" style="border-spacing:0px;border-collapse:separate;width:100%;table-layout:fixed"><tbody><tr><td style="padding:20px"><table align="center" width="100%" border="0" cellpadding="0" cellspacing="0" role="presentation" style="color:#000;font-style:normal;font-weight:normal;font-size:16px;line-height:1.4;letter-spacing:0;text-align:left;direction:ltr;border-collapse:collapse;font-family:Arial, Helvetica, sans-serif;white-space:normal;word-wrap:break-word;word-break:break-word"><tbody><tr><td style="padding:0px 0px 16px"><table cellpadding="0" cellspacing="0" border="0" style="width:100%"><tbody><tr><td align="center"><table cellpadding="0" cellspacing="0" border="0" class="ebi ebi-mw-410" style="width:100%;max-width:228px"><tbody><tr><td style="width:100%"><img src="https://6h4f1wynnfi3az0iuxasnf0w1miw0eyibh4nwfx3k14.canva-cdn.email/9f15b147365865eae44e00460af1f08e.png" width="228" height="215" style="display:block;width:100%;height:auto;max-width:100%"></td></tr></tbody></table></td></tr></tbody></table></td></tr><tr><td dir="ltr" class="ers-fs-187" style="color:#ffffff;font-size:18.7px;font-family:&quot;Trebuchet MS&quot;, Helvetica, sans-serif;text-align:center;line-height:1.2;mso-line-height-alt:22.4px"><span style="font-weight:700;white-space:pre-wrap">Revisa la rutina de la semana →</span><span style="white-space:pre-wrap"> <br></span><br></td></tr></tbody></table></td></tr></tbody></table></td><td width="16" class="l1-s0" style="width:16px;box-sizing:border-box;font-size:0">&nbsp;</td><td width="48.55%" class="l1-c1" style="width:48.55%;box-sizing:border-box;vertical-align:top;background-color:#f98cbd;border-top-left-radius:15px;border-top-right-radius:15px;border-bottom-left-radius:15px;border-bottom-right-radius:15px"><table border="0" cellpadding="0" cellspacing="0" style="border-spacing:0px;border-collapse:separate;width:100%;table-layout:fixed"><tbody><tr><td style="padding:20px"><table align="center" width="100%" border="0" cellpadding="0" cellspacing="0" role="presentation" style="color:#000;font-style:normal;font-weight:normal;font-size:16px;line-height:1.4;letter-spacing:0;text-align:left;direction:ltr;border-collapse:collapse;font-family:Arial, Helvetica, sans-serif;white-space:normal;word-wrap:break-word;word-break:break-word"><tbody><tr><td style="padding:0px 0px 16px"><table cellpadding="0" cellspacing="0" border="0" style="width:100%"><tbody><tr><td align="center"><table cellpadding="0" cellspacing="0" border="0" class="ebi ebi-mw-410" style="width:100%;max-width:228px"><tbody><tr><td style="width:100%"><img src="https://6h4f1wynnfi3az0iuxasnf0w1miw0eyibh4nwfx3k14.canva-cdn.email/3b2e47345ec584a20ca994213ab79b40.png" width="228" height="214" style="display:block;width:100%;height:auto;max-width:100%"></td></tr></tbody></table></td></tr></tbody></table></td></tr><tr><td dir="ltr" class="ers-fs-187" style="color:#ffffff;font-size:18.7px;font-weight:700;font-family:&quot;Trebuchet MS&quot;, Helvetica, sans-serif;white-space:pre-wrap;text-align:center;line-height:1.2;mso-line-height-alt:22.4px">Conoce su plan de alimentación →<br></td></tr></tbody></table></td></tr></tbody></table></td></tr></tbody></table></td></tr></tbody></table></td></tr><tr><td dir="ltr" class="ers-fs-187" style="color:#faf6f1;font-size:18.7px;font-weight:700;font-family:Helvetica, Arial, sans-serif;white-space:pre-wrap;text-align:center;padding:0px 24px 16px;line-height:1.2;mso-line-height-alt:22.4px;text-decoration:none">&nbsp;</td></tr><tr><td dir="ltr" class="ers-fs-333" style="color:#faf6f1;font-size:33.3px;font-weight:700;font-family:&quot;Trebuchet MS&quot;, Helvetica, sans-serif;white-space:pre-wrap;text-align:center;padding:0px 24px 16px;line-height:1.2;mso-line-height-alt:40px">El cuidado continúa<br><br></td></tr><tr><td style="padding:0px 24px 16px"><table border="0" cellpadding="0" cellspacing="0" class="layout-2" align="center" style="display:table;border-spacing:0px;border-collapse:separate;width:100%;max-width:100%;table-layout:fixed;margin:0 auto;border-top-left-radius:0;border-top-right-radius:0;border-bottom-left-radius:0;border-bottom-right-radius:0"><tbody><tr><td style="text-align:center"><table border="0" cellpadding="0" cellspacing="0" style="border-spacing:0px;border-collapse:separate;width:100%;max-width:552px;table-layout:fixed;margin:0 auto"><tbody><tr><td width="48.55%" class="l2-c0" style="width:48.55%;box-sizing:border-box;vertical-align:top;background-color:#fff0de;border-top-left-radius:15px;border-top-right-radius:15px;border-bottom-left-radius:15px;border-bottom-right-radius:15px"><table border="0" cellpadding="0" cellspacing="0" style="border-spacing:0px;border-collapse:separate;width:100%;table-layout:fixed"><tbody><tr><td style="padding:20px"><table align="center" width="100%" border="0" cellpadding="0" cellspacing="0" role="presentation" style="color:#000;font-style:normal;font-weight:normal;font-size:16px;line-height:1.4;letter-spacing:0;text-align:left;direction:ltr;border-collapse:collapse;font-family:Arial, Helvetica, sans-serif;white-space:normal;word-wrap:break-word;word-break:break-word"><tbody><tr><td style="padding:0px 0px 16px"><table cellpadding="0" cellspacing="0" border="0" style="width:100%"><tbody><tr><td align="center"><!--[if mso]><table cellpadding="0" cellspacing="0" border="0" width="124" style="width:124px"><tbody><tr><td><![endif]--><table cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:124px"><tbody><tr><td style="width:100%"><img src="https://6h4f1wynnfi3az0iuxasnf0w1miw0eyibh4nwfx3k14.canva-cdn.email/1d058611c00991f0d23ae903684a7d2d.png" width="124" height="130" style="display:block;width:100%;height:auto;max-width:100%"></td></tr></tbody></table><!--[if mso]></td></tr></tbody></table><![endif]--></td></tr></tbody></table></td></tr><tr><td dir="ltr" style="font-size:16px;font-weight:700;font-family:&quot;Trebuchet MS&quot;, Helvetica, sans-serif;white-space:pre-wrap;text-align:center;line-height:1.2;mso-line-height-alt:19.2px">${feedingLine}<br></td></tr></tbody></table></td></tr></tbody></table></td><td width="16" class="l2-s0" style="width:16px;box-sizing:border-box;font-size:0">&nbsp;</td><td width="48.55%" class="l2-c1" style="width:48.55%;box-sizing:border-box;vertical-align:top;background-color:#fff0de;border-top-left-radius:15px;border-top-right-radius:15px;border-bottom-left-radius:15px;border-bottom-right-radius:15px"><table border="0" cellpadding="0" cellspacing="0" style="border-spacing:0px;border-collapse:separate;width:100%;table-layout:fixed"><tbody><tr><td style="padding:20px"><table align="center" width="100%" border="0" cellpadding="0" cellspacing="0" role="presentation" style="color:#000;font-style:normal;font-weight:normal;font-size:16px;line-height:1.4;letter-spacing:0;text-align:left;direction:ltr;border-collapse:collapse;font-family:Arial, Helvetica, sans-serif;white-space:normal;word-wrap:break-word;word-break:break-word"><tbody><tr><td style="padding:0px 0px 16px"><table cellpadding="0" cellspacing="0" border="0" style="width:100%"><tbody><tr><td align="center"><!--[if mso]><table cellpadding="0" cellspacing="0" border="0" width="100" style="width:100px"><tbody><tr><td><![endif]--><table cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:100px"><tbody><tr><td style="width:100%"><img src="https://6h4f1wynnfi3az0iuxasnf0w1miw0eyibh4nwfx3k14.canva-cdn.email/b07d363230160daf723c5a12eef9e1c3.png" width="100" height="132" style="display:block;width:100%;height:auto;max-width:100%"></td></tr></tbody></table><!--[if mso]></td></tr></tbody></table><![endif]--></td></tr></tbody></table></td></tr><tr><td dir="ltr" style="font-size:16px;font-weight:700;font-family:&quot;Trebuchet MS&quot;, Helvetica, sans-serif;white-space:pre-wrap;text-align:center;line-height:1.2;mso-line-height-alt:19.2px">${healthLine}<br></td></tr></tbody></table></td></tr></tbody></table></td></tr></tbody></table></td></tr></tbody></table></td></tr><tr><td dir="ltr" class="ers-fs-187" style="color:#faf6f1;font-size:18.7px;font-family:Helvetica, Arial, sans-serif;text-align:center;padding:0px 24px 16px;line-height:1.2;mso-line-height-alt:22.4px"><br><span style="white-space:pre-wrap">${bodyIntro}</span><span style="white-space:pre-wrap"> </span><span style="font-style:italic;white-space:pre-wrap">cuando recibe lo que necesita, toda la casa lo nota.</span><br></td></tr><tr><td dir="ltr" class="ers-fs-187" style="color:#faf6f1;font-size:18.7px;font-family:Helvetica, Arial, sans-serif;white-space:pre-wrap;text-align:center;padding:0px 24px 16px;line-height:1.2;mso-line-height-alt:22.4px;text-decoration:none">&nbsp;</td></tr><tr><td style="padding:0px 24px 16px"><table cellpadding="0" cellspacing="0" border="0" style="width:100%"><tbody><tr><td align="center"><!--[if mso]><table cellpadding="0" cellspacing="0" border="0" width="56" style="width:56px"><tbody><tr><td><![endif]--><table cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:56px"><tbody><tr><td style="width:100%"><img src="https://6h4f1wynnfi3az0iuxasnf0w1miw0eyibh4nwfx3k14.canva-cdn.email/1295f244d0261f3e7a2ba0faca396cd6.png" width="56" height="57" style="display:block;width:100%;height:auto;max-width:100%"></td></tr></tbody></table><!--[if mso]></td></tr></tbody></table><![endif]--></td></tr></tbody></table></td></tr><tr><td dir="ltr" class="ers-fs-187" style="color:#faf6f1;font-size:18.7px;font-family:Helvetica, Arial, sans-serif;white-space:pre-wrap;text-align:left;padding:0px 24px 16px;line-height:1.2;mso-line-height-alt:22.4px;text-decoration:none">&nbsp;</td></tr><tr><td dir="ltr" class="ers-fs-187" style="color:#faf6f1;font-size:18.7px;font-family:Helvetica, Arial, sans-serif;text-align:center;padding:0px 24px 16px;line-height:1.2;mso-line-height-alt:22.4px"><span style="font-weight:700;white-space:pre-wrap">Con cariño,</span><span style="white-space:pre-wrap"><br>el </span><span style="font-weight:700;white-space:pre-wrap">equipo de PawCalendar</span><br></td></tr><tr><td style="padding:0px 0px 16px"><table cellpadding="0" cellspacing="0" border="0" style="width:100%"><tbody><tr><td align="center"><table cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:600px"><tbody><tr><td style="width:100%"><img src="https://6h4f1wynnfi3az0iuxasnf0w1miw0eyibh4nwfx3k14.canva-cdn.email/5922769d9f5c8f0b87fcd4ac91b0d8ac.png" width="600" height="215" style="display:block;width:100%;height:auto;max-width:100%"></td></tr></tbody></table></td></tr></tbody></table></td></tr><tr><td dir="ltr" style="font-size:16px;white-space:pre-wrap;text-align:left;padding:0px 24px 16px;line-height:1.4;mso-line-height-alt:22.4px;text-decoration:none">&nbsp;</td></tr><tr><td><table border="0" cellpadding="0" cellspacing="0" class="layout-3" align="center" style="display:table;border-spacing:0px;border-collapse:separate;width:100%;max-width:100%;table-layout:fixed;margin:0 auto;background-color:#f98cbd"><tbody><tr><td style="text-align:center;padding:19.758535734156162px 24px"><table border="0" cellpadding="0" cellspacing="0" style="border-spacing:0px;border-collapse:separate;width:100%;max-width:451px;table-layout:fixed;margin:0 auto"><tbody><tr><td width="35.83%" class="l3-c0" style="width:35.83%;box-sizing:border-box;vertical-align:top"><table border="0" cellpadding="0" cellspacing="0" style="border-spacing:0px;border-collapse:separate;width:100%;table-layout:fixed"><tbody><tr><td><table align="center" width="100%" border="0" cellpadding="0" cellspacing="0" role="presentation" style="color:#000;font-style:normal;font-weight:normal;font-size:16px;line-height:1.4;letter-spacing:0;text-align:left;direction:ltr;border-collapse:collapse;font-family:Arial, Helvetica, sans-serif;white-space:normal;word-wrap:break-word;word-break:break-word"><tbody><tr><td><table cellpadding="0" cellspacing="0" border="0" style="width:100%"><tbody><tr><td align="center"><!--[if mso]><table cellpadding="0" cellspacing="0" border="0" width="44" style="width:44px"><tbody><tr><td><![endif]--><table cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:44px"><tbody><tr><td style="width:100%"><img src="https://6h4f1wynnfi3az0iuxasnf0w1miw0eyibh4nwfx3k14.canva-cdn.email/344e5f3c53a6ec728f3e4878c67427e0.png" width="44" height="45" style="display:block;width:100%;height:auto;max-width:100%"></td></tr></tbody></table><!--[if mso]></td></tr></tbody></table><![endif]--></td></tr></tbody></table></td></tr></tbody></table></td></tr></tbody></table></td><td width="0" class="l3-s0" style="width:0;box-sizing:border-box;font-size:0">&nbsp;</td><td width="30.17%" class="l3-c1" style="width:30.17%;box-sizing:border-box;vertical-align:top"><table border="0" cellpadding="0" cellspacing="0" style="border-spacing:0px;border-collapse:separate;width:100%;table-layout:fixed"><tbody><tr><td><table align="center" width="100%" border="0" cellpadding="0" cellspacing="0" role="presentation" style="color:#000;font-style:normal;font-weight:normal;font-size:16px;line-height:1.4;letter-spacing:0;text-align:left;direction:ltr;border-collapse:collapse;font-family:Arial, Helvetica, sans-serif;white-space:normal;word-wrap:break-word;word-break:break-word"><tbody><tr><td><table cellpadding="0" cellspacing="0" border="0" style="width:100%"><tbody><tr><td align="center"><!--[if mso]><table cellpadding="0" cellspacing="0" border="0" width="44" style="width:44px"><tbody><tr><td><![endif]--><table cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:44px"><tbody><tr><td style="width:100%"><img src="https://6h4f1wynnfi3az0iuxasnf0w1miw0eyibh4nwfx3k14.canva-cdn.email/e0e66f40491b20967b336696383d2326.png" width="44" height="44" style="display:block;width:100%;height:auto;max-width:100%"></td></tr></tbody></table><!--[if mso]></td></tr></tbody></table><![endif]--></td></tr></tbody></table></td></tr></tbody></table></td></tr></tbody></table></td><td width="0" class="l3-s1" style="width:0;box-sizing:border-box;font-size:0">&nbsp;</td><td width="34.00%" class="l3-c2" style="width:34.00%;box-sizing:border-box;vertical-align:top"><table border="0" cellpadding="0" cellspacing="0" style="border-spacing:0px;border-collapse:separate;width:100%;table-layout:fixed"><tbody><tr><td><table align="center" width="100%" border="0" cellpadding="0" cellspacing="0" role="presentation" style="color:#000;font-style:normal;font-weight:normal;font-size:16px;line-height:1.4;letter-spacing:0;text-align:left;direction:ltr;border-collapse:collapse;font-family:Arial, Helvetica, sans-serif;white-space:normal;word-wrap:break-word;word-break:break-word"><tbody><tr><td><table cellpadding="0" cellspacing="0" border="0" style="width:100%"><tbody><tr><td align="center"><!--[if mso]><table cellpadding="0" cellspacing="0" border="0" width="42" style="width:42px"><tbody><tr><td><![endif]--><table cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:42px"><tbody><tr><td style="width:100%"><img src="https://6h4f1wynnfi3az0iuxasnf0w1miw0eyibh4nwfx3k14.canva-cdn.email/70ba6d413dccdba5db9f8460dbb27e2d.png" width="42" height="44" style="display:block;width:100%;height:auto;max-width:100%"></td></tr></tbody></table><!--[if mso]></td></tr></tbody></table><![endif]--></td></tr></tbody></table></td></tr></tbody></table></td></tr></tbody></table></td></tr></tbody></table></td></tr></tbody></table></td></tr></tbody></table></td></tr></tbody></table></td></tr><tr><td height="100%" style="height:100%;font-size:0;line-height:0" aria-hidden="true">&nbsp;</td></tr><tr><td style="vertical-align:top"><table border="0" cellpadding="0" cellspacing="0" class="layout-4" align="center" style="display:table;border-spacing:0px;border-collapse:separate;width:100%;max-width:100%;table-layout:fixed;margin:0 auto;background-color:#30a7d7"><tbody><tr><td style="text-align:center;padding:17.002360758047544px 0px"><table border="0" cellpadding="0" cellspacing="0" style="border-spacing:0px;border-collapse:separate;width:100%;max-width:600px;table-layout:fixed;margin:0 auto"><tbody><tr><td width="100.00%" style="width:100.00%;box-sizing:border-box;vertical-align:middle"><table border="0" cellpadding="0" cellspacing="0" style="border-spacing:0px;border-collapse:separate;width:100%;table-layout:fixed"><tbody><tr><td><table align="center" width="100%" border="0" cellpadding="0" cellspacing="0" role="presentation" style="color:#000;font-style:normal;font-weight:normal;font-size:16px;line-height:1.4;letter-spacing:0;text-align:left;direction:ltr;border-collapse:collapse;font-family:Arial, Helvetica, sans-serif;white-space:normal;word-wrap:break-word;word-break:break-word"><tbody><tr><td dir="ltr" style="color:#faf6f1;font-size:16px;letter-spacing:-0.025em;text-align:center;padding:0px 0px 16px;line-height:1.4;mso-line-height-alt:22.4px"><a href="${APP}/" target="_blank" rel="noopener nofollow" style="color:#faf6f1;text-decoration:inherit"><span style="text-decoration:underline;white-space:pre-wrap">Abrir el planificador</span></a><span style="white-space:pre-wrap"> | </span><a href="${APP}/simulador" target="_blank" rel="noopener nofollow" style="color:#faf6f1;text-decoration:inherit"><span style="text-decoration:underline;white-space:pre-wrap">Probar el simulador</span></a><span style="white-space:pre-wrap"> | </span><a href="${REPO}" target="_blank" rel="noopener nofollow" style="color:#faf6f1;text-decoration:inherit"><span style="text-decoration:underline;white-space:pre-wrap">Conoce el proyecto</span></a><br></td></tr><tr><td dir="ltr" style="color:#faf6f1;font-size:16px;letter-spacing:-0.025em;text-align:center;padding:0px 0px 16px;line-height:1.4;mso-line-height-alt:22.4px"><br><span style="white-space:pre-wrap">Proyecto universitario, Feria de Innovación</span><span style="white-space:pre-wrap"><br>Universidad Mayor</span><span style="white-space:pre-wrap"><br>© PawCalendar 2026</span><br></td></tr><tr><td dir="ltr" style="color:#faf6f1;font-size:16px;letter-spacing:-0.025em;white-space:pre-wrap;text-align:left;line-height:1.4;mso-line-height-alt:22.4px;text-decoration:none">&nbsp;</td></tr></tbody></table></td></tr></tbody></table></td></tr></tbody></table></td></tr></tbody></table></td></tr></tbody></table><!--[if mso]></td>
+                </tr>
+              </tbody>
+            </table>
+          </center><![endif]--></td></tr></tbody></table></body></html>`;
 }
 
 /**
