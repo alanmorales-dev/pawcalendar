@@ -45,8 +45,8 @@ export interface PlannerState {
   /** foto de la mascota (miniatura dataURL) */
   photo?: string;
   medical: MedicalRecord[];
-  /** saldo de PawPoints (acumula entre semanas) */
-  points: number;
+  /** saldo de PawPoints por integrante (acumula entre semanas) */
+  points: Record<string, number>;
   /** kg de alimento donados a fundaciones (500 pts = 1 kg) */
   donatedKg: number;
   /** ids de recompensas canjeadas (historial simple) */
@@ -64,7 +64,13 @@ export function loadState(): PlannerState | null {
     // campos agregados en iteraciones posteriores: estados viejos no los traen
     if (typeof parsed.registered !== 'boolean') parsed.registered = false;
     if (!Array.isArray(parsed.medical)) parsed.medical = [];
-    if (typeof parsed.points !== 'number') parsed.points = 0;
+    // points pasó de número único a mapa por integrante; migrar estados viejos
+    if (typeof parsed.points !== 'object' || parsed.points === null || Array.isArray(parsed.points)) {
+      parsed.points = {};
+    }
+    for (const m of parsed.members) {
+      if (typeof parsed.points[m] !== 'number') parsed.points[m] = 0;
+    }
     if (typeof parsed.donatedKg !== 'number') parsed.donatedKg = 0;
     if (!Array.isArray(parsed.redeemed)) parsed.redeemed = [];
     return parsed;

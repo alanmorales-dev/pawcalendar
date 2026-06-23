@@ -45,6 +45,7 @@ export function badges(state: PlannerState): Badge[] {
   const completedTotal =
     state.assignments.filter((a) => a.completed).length +
     state.history.reduce((acc, h) => acc + h.completed, 0);
+  const topMemberPoints = Math.max(0, ...Object.values(state.points));
 
   return [
     { id: 'primeros_pasos', label: 'Primeros pasos', detail: 'Completaste tu primera tarea', earned: completedTotal >= 1 },
@@ -52,8 +53,13 @@ export function badges(state: PlannerState): Badge[] {
     { id: 'registro_dia', label: 'Registro al día', detail: 'Inscrita en el Registro Nacional', earned: state.registered },
     { id: 'corazon_solidario', label: 'Corazón solidario', detail: 'Donaste alimento a una fundación', earned: state.donatedKg >= 1 },
     { id: 'constancia', label: 'Constancia', detail: 'Cuatro semanas de cuidado', earned: state.history.length >= 4 },
-    { id: 'dueno_del_mes', label: 'Dueño del mes', detail: 'Acumulaste 300 PawPoints', earned: state.points >= 300 },
+    { id: 'dueno_del_mes', label: 'Dueño del mes', detail: 'Alguien del hogar llegó a 300 PawPoints', earned: topMemberPoints >= 300 },
   ];
+}
+
+/** Total de PawPoints del hogar (suma de los integrantes). */
+export function totalPoints(points: Record<string, number>): number {
+  return Object.values(points).reduce((a, b) => a + b, 0);
 }
 
 /** PawPoints que otorga marcar una tarea, según si ya estaba premiada y si trae foto. */

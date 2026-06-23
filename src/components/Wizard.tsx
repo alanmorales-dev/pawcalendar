@@ -172,7 +172,7 @@ export default function Wizard({ initial, onDone }: Props) {
       history: initial?.history ?? [],
       photo: initial?.photo,
       medical: initial?.medical ?? [],
-      points: initial?.points ?? 0,
+      points: Object.fromEntries(members.map((m) => [m, initial?.points?.[m] ?? 0])),
       donatedKg: initial?.donatedKg ?? 0,
       redeemed: initial?.redeemed ?? [],
     });

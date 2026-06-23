@@ -6,7 +6,7 @@ import { buildFeedingPlan } from '@/lib/feeding';
 import { generateWeek, leastLoadedOther } from '@/lib/routine';
 import { healthMilestones, type HealthMilestone } from '@/lib/health';
 import { sendPlanEmail } from '@/lib/email';
-import { badges, pointsForCompletion, REWARDS, type Reward } from '@/lib/rewards';
+import { badges, pointsForCompletion, REWARDS, totalPoints, type Reward } from '@/lib/rewards';
 import { fileToThumbnail } from '@/lib/photo';
 import { mondayOf, saveState, uid, type PlannerState, type Priority } from '@/lib/storage';
 import type { Goal, MedicalRecord, TaskType } from '@/lib/types';
@@ -67,6 +67,7 @@ export default function Planner({ initial, onReconfigure }: Props) {
   const [emailInput, setEmailInput] = useState('');
   const [sending, setSending] = useState(false);
   const [showRewards, setShowRewards] = useState(false);
+  const [redeemMember, setRedeemMember] = useState(initial.members[0] ?? '');
   const [medKind, setMedKind] = useState<MedicalRecord['kind']>('vacuna');
   const [medName, setMedName] = useState('');
   const [medDate, setMedDate] = useState('');
@@ -109,13 +110,13 @@ export default function Planner({ initial, onReconfigure }: Props) {
       : 0;
     update((prev) => ({
       ...prev,
-      points: prev.points + gained,
+      points: { ...prev.points, [a.member]: (prev.points[a.member] ?? 0) + gained },
       assignments: prev.assignments.map((x, i) =>
         i === idx ? { ...x, completed: turningOn, awarded: x.awarded || turningOn } : x,
       ),
     }));
     if (turningOn) {
-      showToast(gained > 0 ? `+${gained} PawPoints · ${TYPE_DATA[a.type].label} hecha` : `${TYPE_DATA[a.type].label} hecha`);
+      showToast(gained > 0 ? `+${gained} PawPoints para ${a.member}` : `${TYPE_DATA[a.type].label} hecha`);
     } else {
       showToast(`${TYPE_DATA[a.type].label} pendiente`);
     }
@@ -139,13 +140,13 @@ export default function Planner({ initial, onReconfigure }: Props) {
       const gained = pointsForCompletion({ alreadyAwarded: !!a.awarded, hadPhoto: !!a.photo, withPhoto: true });
       update((prev) => ({
         ...prev,
-        points: prev.points + gained,
+        points: { ...prev.points, [a.member]: (prev.points[a.member] ?? 0) + gained },
         assignments: prev.assignments.map((x, i) =>
           i === idx ? { ...x, completed: true, photo: thumb, awarded: true } : x,
         ),
       }));
       showToast(
-        gained > 0 ? `+${gained} PawPoints · ${TYPE_DATA[a.type].label} verificada` : `${TYPE_DATA[a.type].label} verificada`,
+        gained > 0 ? `+${gained} PawPoints para ${a.member} · verificada` : `${TYPE_DATA[a.type].label} verificada`,
       );
     } catch {
       showToast('No se pudo procesar la foto');
@@ -204,18 +205,18 @@ export default function Planner({ initial, onReconfigure }: Props) {
     showToast(`${TYPE_DATA[a.type].label} movida a ${DAYS[a.day + 1]}`);
   }
 
-  function redeem(r: Reward) {
-    if (s.points < r.cost) {
-      showToast('Te faltan PawPoints');
+  function redeem(r: Reward, member: string) {
+    if ((s.points[member] ?? 0) < r.cost) {
+      showToast(`A ${member} le faltan PawPoints`);
       return;
     }
     update((prev) => ({
       ...prev,
-      points: prev.points - r.cost,
+      points: { ...prev.points, [member]: (prev.points[member] ?? 0) - r.cost },
       donatedKg: r.kind === 'donacion' ? prev.donatedKg + 1 : prev.donatedKg,
       redeemed: [...prev.redeemed, r.id],
     }));
-    showToast(r.kind === 'donacion' ? '¡Gracias! Donaste 1 kg de alimento' : `Canjeado: ${r.label}`);
+    showToast(r.kind === 'donacion' ? `${member} donó 1 kg de alimento. ¡Gracias!` : `${member} canjeó: ${r.label}`);
   }
 
   async function emailPlan() {
@@ -351,7 +352,7 @@ export default function Planner({ initial, onReconfigure }: Props) {
             <div className="progress-pct">{pct}%</div>
           </div>
           <div className="points-chip" title="PawPoints acumulados">
-            <span className="points-chip-num">{s.points}</span> PawPoints
+            <span className="points-chip-num">{totalPoints(s.points)}</span> PawPoints
           </div>
           <a className="icon-btn" href="/simulador" title="Simulador de adopción">🔍</a>
           <button className="icon-btn" title="Reconfigurar planificador" onClick={onReconfigure}>
@@ -505,14 +506,30 @@ export default function Planner({ initial, onReconfigure }: Props) {
         <div className="right-col">
           {/* PAWPOINTS */}
           <div className="panel">
-            <div className="panel-header points-h">PawPoints</div>
+            <div className="panel-header points-h">PawPoints del hogar</div>
             <div className="panel-body" style={{ paddingTop: 12 }}>
-              <div className="points-balance">
-                <span className="points-num">{s.points}</span>
-                <span className="points-unit">disponibles</span>
-              </div>
+              {[...s.members]
+                .sort((a, b) => (s.points[b] ?? 0) - (s.points[a] ?? 0))
+                .map((m, rank) => {
+                  const pts = s.points[m] ?? 0;
+                  const max = Math.max(1, ...s.members.map((x) => s.points[x] ?? 0));
+                  return (
+                    <div className="rank-row" key={m}>
+                      <span className="rank-pos">{rank + 1}</span>
+                      <div className="rank-info">
+                        <div className="rank-top">
+                          <span className="rank-name">{m}</span>
+                          <span className="rank-pts">{pts}</span>
+                        </div>
+                        <div className="rank-track">
+                          <div className="rank-fill" style={{ width: `${(pts / max) * 100}%` }} />
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
               {s.donatedKg > 0 && (
-                <div className="points-donated">Donaste {s.donatedKg} kg de alimento a fundaciones</div>
+                <div className="points-donated">El hogar donó {s.donatedKg} kg de alimento a fundaciones</div>
               )}
               <button className="btn-primary full" onClick={() => setShowRewards(true)}>
                 Canjear recompensas
@@ -779,14 +796,28 @@ export default function Planner({ initial, onReconfigure }: Props) {
               <strong>Canjea tus PawPoints</strong>
               <button className="modal-x" onClick={() => setShowRewards(false)}>×</button>
             </div>
-            <p className="modal-sub">Tienes {s.points} PawPoints · Aliados y fundaciones de ejemplo</p>
+            <div className="redeem-who">
+              <label>¿Quién canjea?</label>
+              <select value={redeemMember} onChange={(e) => setRedeemMember(e.target.value)}>
+                {s.members.map((m) => (
+                  <option key={m} value={m}>
+                    {m} — {s.points[m] ?? 0} pts
+                  </option>
+                ))}
+              </select>
+            </div>
+            <p className="modal-sub">Aliados y fundaciones de ejemplo</p>
             {REWARDS.map((r) => (
               <div className="reward-row" key={r.id}>
                 <div className="reward-info">
                   <strong>{r.label}</strong>
                   <span>{r.detail}</span>
                 </div>
-                <button className="reward-btn" disabled={s.points < r.cost} onClick={() => redeem(r)}>
+                <button
+                  className="reward-btn"
+                  disabled={(s.points[redeemMember] ?? 0) < r.cost}
+                  onClick={() => redeem(r, redeemMember)}
+                >
                   {r.cost} pts
                 </button>
               </div>

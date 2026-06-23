@@ -9,7 +9,7 @@ import { generateWeek, leastLoadedOther } from '../src/lib/routine.ts';
 import { healthMilestones } from '../src/lib/health.ts';
 import { estimateMonthlyCost, estimateWeeklyTime } from '../src/lib/simulator.ts';
 import { buildPlanEmailHtml, buildPlanEmailSubject } from '../src/lib/email.ts';
-import { badges, pointsForCompletion, REWARDS } from '../src/lib/rewards.ts';
+import { badges, pointsForCompletion, REWARDS, totalPoints } from '../src/lib/rewards.ts';
 import type { Assignment, DogProfile } from '../src/lib/types.ts';
 import type { PlannerState } from '../src/lib/storage.ts';
 
@@ -161,12 +161,14 @@ console.log(`\n━━━ Correo de bienvenida ━━━`);
     members: ['Alan', 'Vale'], mealTimes: ['08:00', '14:00', '20:00'], foodKcalPerKg: 3500,
     registered: false, vetName: '', vetPhone: '', notes: '', pending: [], weekStart: '2026-06-15',
     assignments: generateWeek(profile, breedById('border_collie'), ['Alan', 'Vale']), history: [],
-    medical: [], points: 0, donatedKg: 0, redeemed: [],
+    medical: [], points: {}, donatedKg: 0, redeemed: [],
   };
   const html = buildPlanEmailHtml(state);
   check(buildPlanEmailSubject(state).includes('Luna'), 'el asunto menciona al perro');
   check(html.includes('Luna'), 'el correo menciona al perro');
-  check(html.includes(`${state.assignments.filter((a) => a.type === 'walk').length} / semana`), 'incluye los paseos de la semana');
+  check(html.includes('Distribución de la semana'), 'incluye la grilla visual de la semana');
+  check(html.includes('Alan') && html.includes('Vale'), 'la grilla lista a los integrantes');
+  check(html.includes('>Lun<') && html.includes('>Dom<'), 'la grilla tiene encabezados de días');
   check(/g al día/.test(html), 'incluye la ración diaria');
   check(html.includes('Registro Nacional'), 'recuerda el registro si no está inscrito');
   const htmlReg = buildPlanEmailHtml({ ...state, registered: true });
@@ -191,13 +193,18 @@ console.log(`\n━━━ PawPoints ━━━`);
     profile: { name: 'Luna', breedId: 'mestizo', size: 'mediano', weightKg: 12, ageMonths: 36, neutered: true, goals: [] },
     coat: 'corto', energy: 'media', members: ['Alan', 'Vale'], mealTimes: ['08:00', '18:00'], foodKcalPerKg: 3500,
     registered: false, vetName: '', vetPhone: '', notes: '', pending: [], weekStart: '2026-06-15',
-    assignments: [], history: [], medical: [], points: 0, donatedKg: 0, redeemed: [],
+    assignments: [], history: [], medical: [], points: {}, donatedKg: 0, redeemed: [],
   };
   const b = (st: PlannerState, id: string) => badges(st).find((x) => x.id === id)?.earned;
   check(b(base, 'equipo_unido') === true, 'badge equipo unido con 2+ integrantes');
   check(b(base, 'registro_dia') === false, 'badge registro bloqueado si no inscrita');
   check(b({ ...base, registered: true }, 'registro_dia') === true, 'badge registro al inscribir');
   check(b({ ...base, donatedKg: 1 }, 'corazon_solidario') === true, 'badge solidario al donar');
+
+  // puntos individuales por integrante
+  check(totalPoints({ Alan: 30, Vale: 50 }) === 80, 'total del hogar = suma de integrantes');
+  check(b({ ...base, points: { Alan: 320, Vale: 10 } }, 'dueno_del_mes') === true, 'dueño del mes si alguien llega a 300');
+  check(b({ ...base, points: { Alan: 120, Vale: 90 } }, 'dueno_del_mes') === false, 'dueño del mes bloqueado bajo 300');
 }
 
 // ── catálogo ──
